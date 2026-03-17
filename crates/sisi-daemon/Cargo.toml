@@ -1,0 +1,26 @@
+[package]
+name = "sisi-daemon"
+version = "0.1.0"
+edition = "2024"
+
+
+[lib]
+name = "sisi_daemon"
+path = "src/lib.rs"
+
+[[bin]]
+name = "sisid"
+path = "src/main.rs"
+
+[dependencies]
+node = { path = "../node" }
+types = { path = "../types" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+libc = "0.2.183"
+tree_magic_mini = { workspace = true }
+dirs = "6.0.0"

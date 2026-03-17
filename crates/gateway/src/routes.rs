@@ -20,7 +20,7 @@ pub async fn serve_blob(Path(hash): Path<String>) -> Response {
         return (StatusCode::SERVICE_UNAVAILABLE, "node not ready").into_response();
     };
 
-    match handle.client.blobs().read_to_bytes(hash).await {
+    match handle.blobs.get_bytes(hash).await {
         Ok(bytes) => {
             let mime = tree_magic_mini::from_u8(&bytes);
             ([(header::CONTENT_TYPE, mime)], bytes.to_vec()).into_response()
@@ -38,7 +38,7 @@ pub async fn serve_site_file(Path((site_hash, file_path)): Path<(String, String)
         return (StatusCode::SERVICE_UNAVAILABLE, "node not ready").into_response();
     };
 
-    let manifest_bytes = match handle.client.blobs().read_to_bytes(manifest_hash).await {
+    let manifest_bytes = match handle.blobs.get_bytes(manifest_hash).await {
         Ok(b) => b,
         Err(_) => return (StatusCode::NOT_FOUND, "manifest not found").into_response(),
     };
@@ -54,7 +54,7 @@ pub async fn serve_site_file(Path((site_hash, file_path)): Path<(String, String)
         return (StatusCode::NOT_FOUND, "file not in manifest").into_response();
     };
 
-    match handle.client.blobs().read_to_bytes(file.hash).await {
+    match handle.blobs.get_bytes(file.hash).await {
         Ok(bytes) => ([(header::CONTENT_TYPE, file.mime.clone())], bytes.to_vec()).into_response(),
         Err(_) => (StatusCode::NOT_FOUND, "blob not found").into_response(),
     }

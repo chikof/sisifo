@@ -11,3 +11,5 @@ tokio = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
 anyhow = { workspace = true }
+iroh-blobs = { workspace = true }
+tree_magic_mini = { workspace = true }

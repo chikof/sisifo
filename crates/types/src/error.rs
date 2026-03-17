@@ -1,4 +1,4 @@
-use iroh_blobs::api::RequestError;
+use iroh_blobs::api::{ExportBaoError, RequestError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -9,8 +9,11 @@ pub enum SisiError {
     #[error("iroh node error: {0}")]
     IrohNode(#[from] n0_error::AnyError),
 
-	#[error("iron blobs error: {0}")]
-	IrohBlobs(#[from] RequestError),
+    #[error("iroh blobs error: {0}")]
+    IrohBlobs(#[from] RequestError),
+
+    #[error("iroh exportbao error: {0}")]
+    IrohExportBao(#[from] ExportBaoError),
 
     #[error("invalid address: {0}")]
     InvalidAddress(String),

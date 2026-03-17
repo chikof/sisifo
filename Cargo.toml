@@ -7,7 +7,8 @@ members = [
   "crates/resolver",
   "crates/manifest",
   "crates/types",
-  # "src-tauri",
+  "crates/sisi-daemon",
+  "src-tauri",
 ]
 
 [workspace.dependencies]
@@ -22,3 +23,4 @@ thiserror = "2.0.18"
 tracing = "0.1.44"
 ed25519-dalek = { version = "2.2.0", features = ["serde"] }
 bytes = "1.11.1"
+tree_magic_mini = "3.2.2"
