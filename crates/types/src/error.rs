@@ -1,3 +1,4 @@
+use iroh_blobs::api::RequestError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -7,6 +8,9 @@ pub enum SisiError {
 
     #[error("iroh node error: {0}")]
     IrohNode(#[from] n0_error::AnyError),
+
+	#[error("iron blobs error: {0}")]
+	IrohBlobs(#[from] RequestError),
 
     #[error("invalid address: {0}")]
     InvalidAddress(String),

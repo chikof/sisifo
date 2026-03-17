@@ -31,11 +31,14 @@ pub struct SiteMeta {
     pub updated_at: u64,
 }
 
-impl From<(&SiteManifest, &str)> for SiteMeta {
-    fn from((m, hash): (&SiteManifest, &str)) -> Self {
+impl<T> From<(&SiteManifest, T)> for SiteMeta
+where
+    T: AsRef<str>,
+{
+    fn from((m, hash): (&SiteManifest, T)) -> Self {
         SiteMeta {
             name: m.name.clone(),
-            hash: hash.to_string(),
+            hash: hash.as_ref().to_string(),
             file_count: m.files.len(),
             total_size: m.files.values().map(|f| f.size).sum(),
             updated_at: m.updated_at,
