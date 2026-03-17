@@ -11,7 +11,7 @@ members = [
 ]
 
 [workspace.dependencies]
-iroh = "0.97"
+iroh = "0.97.0"
 iroh-blobs = "0.99.0"
 axum = { version = "0.8.8", features = ["tokio"] }
 tokio = { version = "1.50.0", features = ["full"] }
