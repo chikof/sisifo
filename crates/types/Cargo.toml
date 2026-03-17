@@ -8,3 +8,6 @@ serde = { workspace = true }
 thiserror = { workspace = true }
 iroh-blobs = { workspace = true }
 ed25519-dalek = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+n0-error = "0.1.3"

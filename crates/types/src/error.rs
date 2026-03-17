@@ -5,6 +5,9 @@ pub enum SisiError {
     #[error("iroh error: {0}")]
     Iroh(#[from] anyhow::Error),
 
+    #[error("iroh node error: {0}")]
+    IrohNode(#[from] n0_error::AnyError),
+
     #[error("invalid address: {0}")]
     InvalidAddress(String),
 

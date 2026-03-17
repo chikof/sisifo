@@ -21,3 +21,4 @@ anyhow = "1.0.102"
 thiserror = "2.0.18"
 tracing = "0.1.44"
 ed25519-dalek = { version = "2.2.0", features = ["serde"] }
+bytes = "1.11.1"
