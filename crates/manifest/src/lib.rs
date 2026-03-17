@@ -1,14 +1,16 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+mod build;
+mod sign;
+mod verify;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub use build::ManifestBuilder;
+pub use sign::sign_manifest;
+pub use verify::verify_manifest;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+use types::{Result, SisiError, SiteManifest};
+
+pub fn canonical_payload(manifest: &SiteManifest) -> Result<Vec<u8>> {
+    let mut sorted: Vec<_> = manifest.files.iter().collect();
+    sorted.sort_by_key(|(k, _)| k.as_str());
+
+    serde_json::to_vec(&sorted).map_err(SisiError::Serde)
 }
