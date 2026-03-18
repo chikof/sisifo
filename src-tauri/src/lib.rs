@@ -12,7 +12,7 @@ pub fn run() {
         .setup(|app| {
             let data_dir = app.path().app_data_dir().unwrap();
 
-			tracing::info!("data_dir = {:?}", data_dir);
+            tracing::info!("data_dir = {:?}", data_dir);
 
             tauri::async_runtime::spawn(async move {
                 SisiNode::start(&data_dir)
