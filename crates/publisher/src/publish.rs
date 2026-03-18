@@ -6,6 +6,8 @@ use tracing::debug;
 use types::{Result, SisiError, SiteFile, SiteHash, SiteMeta};
 use walkdir::WalkDir;
 
+use crate::register_site;
+
 pub struct PublishResult {
     pub site_hash: SiteHash,
     pub meta: SiteMeta,
@@ -60,6 +62,8 @@ pub async fn publish_dir(
 
     let site_hash = SiteHash(manifest_outcome.hash);
     let meta = SiteMeta::from((&manifest, &site_hash.to_string()));
+
+    register_site(&site_hash.to_string(), &manifest).await?;
 
     Ok(PublishResult { site_hash, meta })
 }

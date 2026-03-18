@@ -1,0 +1,31 @@
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+}
+
+:root {
+	--accent: #0d9488;
+	--accent-light: #e6f4f3;
+	--border: #e2e0dc;
+	--surface: #ffffff;
+	--surface-2: #f0ede9;
+	--text: #1a1a1a;
+	--text-2: #6b6760;
+	--text-3: #a09d99;
+	--mono: "DM Mono", monospace;
+	--radius: 6px;
+	--sidebar-w: 160px;
+}
+
+body {
+	background: #f5f4f2;
+	color: #1a1a1a;
+	font-family: "DM Sans", "Helvetica Neue", sans-serif;
+	font-size: 14px;
+	-webkit-font-smoothing: antialiased;
+	height: 100vh;
+	overflow: hidden;
+}

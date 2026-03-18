@@ -11,3 +11,5 @@ tokio = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }
+getrandom = { workspace = true }
+ed25519-dalek = { workspace = true }

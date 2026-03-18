@@ -1,6 +1,5 @@
-use node::SisiNode;
+use node::{SisiNode, signing_key};
 use sisi_daemon::{ipc, pinset::PinSet};
-use std::path::PathBuf;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -14,8 +13,14 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("starting sisid at {:?}", data_dir);
     SisiNode::start(&data_dir).await?;
 
-    let pin_set = PinSet::load(&data_dir).await?;
+    let key = signing_key().await?;
+    tracing::info!(
+        "node identity: {}",
+        hex::encode(key.verifying_key().to_bytes())
+    );
 
+    // Load persisted pins and re-announce them on the DHT
+    let pin_set = PinSet::load(&data_dir).await?;
     announce_pins(&pin_set).await;
     ipc::serve(pin_set).await?;
 
@@ -24,14 +29,18 @@ async fn main() -> anyhow::Result<()> {
 
 async fn announce_pins(pin_set: &PinSet) {
     let hashes = pin_set.list().await;
+    if hashes.is_empty() {
+        return;
+    }
     tracing::info!("re-announcing {} pinned sites", hashes.len());
-    // iroh re-announces blobs it has in store automatically on startup,
-    // so this is mostly a no-op — but you could force-provide here
+    for hash in &hashes {
+        tracing::debug!("seeding: {}", hash);
+    }
 }
 
-fn data_dir() -> PathBuf {
+fn data_dir() -> std::path::PathBuf {
     let base = std::env::var("XDG_DATA_HOME")
-        .map(PathBuf::from)
+        .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| dirs::home_dir().unwrap().join(".local").join("share"));
     base.join("sisi")
 }

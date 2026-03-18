@@ -27,6 +27,7 @@
           cmake
           nodejs
           pnpm
+          gsettings-desktop-schemas
         ];
 
       devShell.env = pkgs: {
@@ -37,6 +38,14 @@
           openssl
           libsoup_3
         ]);
+
+        WEBKIT_DISABLE_COMPOSITING_MODE = "1";
+        GDK_BACKEND = "x11";
+
+        GSETTINGS_SCHEMA_DIR = pkgs.lib.concatStringsSep ":" [
+          "${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}/glib-2.0/schemas"
+          "${pkgs.gtk3}/share/gsettings-schemas/${pkgs.gtk3.name}/glib-2.0/schemas"
+        ];
       };
     };
 }
