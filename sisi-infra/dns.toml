@@ -5,6 +5,7 @@ port = 8443
 domains = ["dns.chiko.dev"]
 cert_mode = "lets_encrypt"
 letsencrypt_prod = true
+contact = "relay@chiko.dev"
 
 [dns]
 port = 5353
