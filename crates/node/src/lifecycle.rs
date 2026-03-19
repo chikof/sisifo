@@ -1,4 +1,5 @@
 use crate::config::NodeConfig;
+use anyhow::anyhow;
 use iroh::{
     Endpoint, RelayMap, RelayUrl, RelayUrlParseError,
     address_lookup::{DnsAddressLookup, PkarrPublisher, PkarrResolver},
@@ -44,7 +45,7 @@ impl SisiNode {
         let blobs = BlobsProtocol::new(&blobs_store, None);
         let peer_count = Arc::new(AtomicUsize::new(0));
 
-        let router = iroh::protocol::Router::builder(endpoint.clone())
+        let router = Router::builder(endpoint.clone())
             .accept(iroh_blobs::ALPN, blobs.clone())
             .spawn();
 
@@ -90,12 +91,12 @@ impl SisiNode {
             builder
                 .bind()
                 .await
-                .map_err(|e| SisiError::Iroh(anyhow::anyhow!(e)))
+                .map_err(|e| SisiError::Iroh(anyhow!(e)))
         } else {
             Endpoint::builder(presets::N0)
                 .bind()
                 .await
-                .map_err(|e| SisiError::Iroh(anyhow::anyhow!(e)))
+                .map_err(|e| SisiError::Iroh(anyhow!(e)))
         }
     }
 

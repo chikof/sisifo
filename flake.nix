@@ -48,6 +48,10 @@
           "${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}/glib-2.0/schemas"
           "${pkgs.gtk3}/share/gsettings-schemas/${pkgs.gtk3.name}/glib-2.0/schemas"
         ];
+
+        SISI_RELAY_URL = "https://relay.chiko.dev";
+        SISI_PKARR_URL = "https://dns.chiko.dev:8443/pkarr";
+        SISI_DNS_ORIGIN = "dns.chiko.dev";
       };
     };
 }
