@@ -1,761 +1,940 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sísifo — Decentralized Web Browser</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Sísifo — Decentralized Web Browser</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<link
+		href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap"
+		rel="stylesheet" />
+	<style>
+		*,
+		*::before,
+		*::after {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+		}
 
-    :root {
-      --bg: #0e0e0e;
-      --bg2: #141414;
-      --bg3: #1a1a1a;
-      --border: #2a2a2a;
-      --text: #e8e4de;
-      --text2: #7a766f;
-      --text3: #3d3a35;
-      --accent: #0d9488;
-      --accent-dim: #0a6b61;
-      --serif: 'Instrument Serif', Georgia, serif;
-      --mono: 'IBM Plex Mono', monospace;
-      --sans: 'IBM Plex Sans', sans-serif;
-    }
+		:root {
+			--bg: #0e0e0e;
+			--bg2: #141414;
+			--bg3: #1a1a1a;
+			--border: #2a2a2a;
+			--text: #e8e4de;
+			--text2: #7a766f;
+			--text3: #3d3a35;
+			--accent: #0d9488;
+			--accent-dim: #0a6b61;
+			--serif: 'Instrument Serif', Georgia, serif;
+			--mono: 'IBM Plex Mono', monospace;
+			--sans: 'IBM Plex Sans', sans-serif;
+		}
 
-    html { scroll-behavior: smooth; }
+		html {
+			scroll-behavior: smooth;
+		}
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--sans);
-      font-size: 15px;
-      line-height: 1.6;
-      -webkit-font-smoothing: antialiased;
-      overflow-x: hidden;
-    }
+		body {
+			background: var(--bg);
+			color: var(--text);
+			font-family: var(--sans);
+			font-size: 15px;
+			line-height: 1.6;
+			-webkit-font-smoothing: antialiased;
+			overflow-x: hidden;
+		}
 
-    /* ── NOISE TEXTURE OVERLAY ── */
-	body::before {
-	  content: '';
-	  position: fixed;
-	  inset: 0;
-	  background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XiDAAAAUVBMVEWFhYWDg4N3d3dtbW17e3t1dXWBgYGHh4t5eXlzc3OLi4ubm5uVlZWPj4+NjY19fX2JiYl/f39ra2uRkZGZmZlpaWmXl5dvb29xcXGTk5NnZ2c8TV1mAAAAG3RSTlNAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEAvEOwtAAAFVklEQVR4XpWWB67c2BUFb3g557T/hRo9/WUMZHlgr4Bg8Z4qQgQJlHI4A8SzFVrapvmTF9O7dmYRFZ60YiBhJRCgh1FYhiLAmdvX0CzTOpNE77ME0Zty/nWWzchDtiqrmQDeuv3powQ5ta2eN0FY0InkqDD73lT9c9lEzwUNqgFHs9VQce3TVClFCQrSTfOiYkVJQBmpbq2L6iZavPnAPcoU0dSw0SUTqz/GtrGuXfbyyBniKykOWQWGqwwMA7QiYAxi+IlPdqo+hYHnUt5ZPfnsHJyNiDtnpJyayNBkF6cWoYGAMY92ZBRSMQcGAgDzBsAFNIqmkEZNDpbQGexelYJBDDCEPgALAAEIBgGIbLxN9T88/YoAAAeABAgEAFQAI/+L0YAABJRU5ErkJggg==");
-	  pointer-events: none;
-	  z-index: 1000;
-	  opacity: 0.035;
-	}
+		/* ── NOISE TEXTURE OVERLAY ── */
+		body::before {
+			content: '';
+			position: fixed;
+			inset: 0;
+			background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XiDAAAAUVBMVEWFhYWDg4N3d3dtbW17e3t1dXWBgYGHh4t5eXlzc3OLi4ubm5uVlZWPj4+NjY19fX2JiYl/f39ra2uRkZGZmZlpaWmXl5dvb29xcXGTk5NnZ2c8TV1mAAAAG3RSTlNAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEAvEOwtAAAFVklEQVR4XpWWB67c2BUFb3g557T/hRo9/WUMZHlgr4Bg8Z4qQgQJlHI4A8SzFVrapvmTF9O7dmYRFZ60YiBhJRCgh1FYhiLAmdvX0CzTOpNE77ME0Zty/nWWzchDtiqrmQDeuv3powQ5ta2eN0FY0InkqDD73lT9c9lEzwUNqgFHs9VQce3TVClFCQrSTfOiYkVJQBmpbq2L6iZavPnAPcoU0dSw0SUTqz/GtrGuXfbyyBniKykOWQWGqwwMA7QiYAxi+IlPdqo+hYHnUt5ZPfnsHJyNiDtnpJyayNBkF6cWoYGAMY92ZBRSMQcGAgDzBsAFNIqmkEZNDpbQGexelYJBDDCEPgALAAEIBgGIbLxN9T88/YoAAAeABAgEAFQAI/+L0YAABJRU5ErkJggg==");
+			pointer-events: none;
+			z-index: 1000;
+			opacity: 0.035;
+		}
 
-    /* ── NAV ── */
-    nav {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 20px 48px;
-      border-bottom: 1px solid transparent;
-      transition: border-color 0.3s, background 0.3s;
-	  will-change: background, border-color;
-    }
-    nav.scrolled {
-      border-color: var(--border);
-      background: rgba(14,14,14,0.92);
-      backdrop-filter: blur(12px);
-    }
+		/* ── NAV ── */
+		nav {
+			position: fixed;
+			top: 0;
+			left: 0;
+			right: 0;
+			z-index: 100;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			padding: 20px 48px;
+			border-bottom: 1px solid transparent;
+			transition: border-color 0.3s, background 0.3s;
+			will-change: background, border-color;
+		}
 
-    .nav-logo {
-      font-family: var(--mono);
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--text);
-      letter-spacing: 0.04em;
-      text-decoration: none;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .nav-logo span {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      background: var(--accent);
-      border-radius: 50%;
-    }
+		nav.scrolled {
+			border-color: var(--border);
+			background: rgba(14, 14, 14, 0.92);
+			backdrop-filter: blur(12px);
+		}
 
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: 32px;
-      list-style: none;
-    }
-    .nav-links a {
-      font-family: var(--mono);
-      font-size: 12px;
-      color: var(--text2);
-      text-decoration: none;
-      letter-spacing: 0.06em;
-      transition: color 0.2s;
-    }
-    .nav-links a:hover { color: var(--text); }
+		.nav-logo {
+			font-family: var(--mono);
+			font-size: 14px;
+			font-weight: 500;
+			color: var(--text);
+			letter-spacing: 0.04em;
+			text-decoration: none;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
 
-    /* ── HERO ── */
-    .hero {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      padding: 120px 48px 80px;
-      position: relative;
-      overflow: hidden;
-    }
+		.nav-logo span {
+			display: inline-block;
+			width: 8px;
+			height: 8px;
+			background: var(--accent);
+			border-radius: 50%;
+		}
 
-    /* Grid lines background */
-    .hero::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image:
-        linear-gradient(var(--border) 1px, transparent 1px),
-        linear-gradient(90deg, var(--border) 1px, transparent 1px);
-      background-size: 80px 80px;
-      opacity: 0.25;
-      mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black 30%, transparent 100%);
-    }
+		.nav-links {
+			display: flex;
+			align-items: center;
+			gap: 32px;
+			list-style: none;
+		}
 
-    .hero-tag {
-      font-family: var(--mono);
-      font-size: 11px;
-      color: var(--accent);
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      margin-bottom: 28px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      opacity: 0;
-      animation: fadeUp 0.6s 0.1s ease forwards;
-    }
-    .hero-tag::before {
-      content: '';
-      display: inline-block;
-      width: 24px;
-      height: 1px;
-      background: var(--accent);
-    }
+		.nav-links a {
+			font-family: var(--mono);
+			font-size: 12px;
+			color: var(--text2);
+			text-decoration: none;
+			letter-spacing: 0.06em;
+			transition: color 0.2s;
+		}
 
-    .hero-headline {
-      font-family: var(--serif);
-      font-size: clamp(52px, 8vw, 108px);
-      font-weight: 400;
-      line-height: 1.0;
-      letter-spacing: -0.02em;
-      color: var(--text);
-      max-width: 900px;
-      opacity: 0;
-      animation: fadeUp 0.7s 0.2s ease forwards;
-    }
-    .hero-headline em {
-      font-style: italic;
-      color: var(--accent);
-    }
+		.nav-links a:hover {
+			color: var(--text);
+		}
 
-    .hero-sub {
-      margin-top: 32px;
-      font-size: 16px;
-      color: var(--text2);
-      max-width: 480px;
-      line-height: 1.7;
-      font-weight: 300;
-      opacity: 0;
-      animation: fadeUp 0.7s 0.35s ease forwards;
-    }
+		/* ── HERO ── */
+		.hero {
+			min-height: 100vh;
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			padding: 120px 48px 80px;
+			position: relative;
+			overflow: hidden;
+		}
 
-    .hero-actions {
-      margin-top: 48px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      opacity: 0;
-      animation: fadeUp 0.7s 0.5s ease forwards;
-    }
+		/* Grid lines background */
+		.hero::after {
+			content: '';
+			position: absolute;
+			inset: 0;
+			background-image:
+				linear-gradient(var(--border) 1px, transparent 1px),
+				linear-gradient(90deg, var(--border) 1px, transparent 1px);
+			background-size: 80px 80px;
+			opacity: 0.25;
+			mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black 30%, transparent 100%);
+		}
 
-    .btn-primary {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 13px 28px;
-      background: var(--accent);
-      color: #fff;
-      font-family: var(--mono);
-      font-size: 13px;
-      font-weight: 500;
-      text-decoration: none;
-      border-radius: 3px;
-      letter-spacing: 0.04em;
-      transition: background 0.2s, transform 0.15s;
-    }
-    .btn-primary:hover { background: var(--accent-dim); transform: translateY(-1px); }
+		.hero-tag {
+			font-family: var(--mono);
+			font-size: 11px;
+			color: var(--accent);
+			letter-spacing: 0.12em;
+			text-transform: uppercase;
+			margin-bottom: 28px;
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			opacity: 0;
+			animation: fadeUp 0.6s 0.1s ease forwards;
+		}
 
-    .btn-secondary {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 13px 28px;
-      background: transparent;
-      color: var(--text2);
-      font-family: var(--mono);
-      font-size: 13px;
-      text-decoration: none;
-      border: 1px solid var(--border);
-      border-radius: 3px;
-      letter-spacing: 0.04em;
-      transition: border-color 0.2s, color 0.2s;
-    }
-    .btn-secondary:hover { border-color: var(--text2); color: var(--text); }
+		.hero-tag::before {
+			content: '';
+			display: inline-block;
+			width: 24px;
+			height: 1px;
+			background: var(--accent);
+		}
 
-    .hero-address {
-      margin-top: 64px;
-      padding-top: 28px;
-      border-top: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      opacity: 0;
-      animation: fadeUp 0.7s 0.65s ease forwards;
-    }
-    .hero-address-label {
-      font-family: var(--mono);
-      font-size: 10px;
-      color: var(--text3);
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-    }
-    .hero-address-value {
-      font-family: var(--mono);
-      font-size: 12px;
-      color: var(--accent);
-      letter-spacing: 0.03em;
-    }
+		.hero-headline {
+			font-family: var(--serif);
+			font-size: clamp(52px, 8vw, 108px);
+			font-weight: 400;
+			line-height: 1.0;
+			letter-spacing: -0.02em;
+			color: var(--text);
+			max-width: 900px;
+			opacity: 0;
+			animation: fadeUp 0.7s 0.2s ease forwards;
+		}
 
-    /* ── SECTION SHARED ── */
-    section {
-      padding: 100px 48px;
-      border-top: 1px solid var(--border);
-    }
+		.hero-headline em {
+			font-style: italic;
+			color: var(--accent);
+		}
 
-    .section-label {
-      font-family: var(--mono);
-      font-size: 10px;
-      color: var(--text3);
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      margin-bottom: 48px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .section-label::after {
-      content: '';
-      flex: 1;
-      max-width: 48px;
-      height: 1px;
-      background: var(--border);
-    }
+		.hero-sub {
+			margin-top: 32px;
+			font-size: 16px;
+			color: var(--text2);
+			max-width: 480px;
+			line-height: 1.7;
+			font-weight: 300;
+			opacity: 0;
+			animation: fadeUp 0.7s 0.35s ease forwards;
+		}
 
-    /* ── HOW IT WORKS ── */
-    .how-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1px;
-      background: var(--border);
-      border: 1px solid var(--border);
-    }
+		.hero-actions {
+			margin-top: 48px;
+			display: flex;
+			align-items: center;
+			gap: 16px;
+			opacity: 0;
+			animation: fadeUp 0.7s 0.5s ease forwards;
+		}
 
-    .how-item {
-      background: var(--bg);
-      padding: 40px 36px;
-      transition: background 0.2s;
-    }
-    .how-item:hover { background: var(--bg2); }
+		.btn-primary {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			padding: 13px 28px;
+			background: var(--accent);
+			color: #fff;
+			font-family: var(--mono);
+			font-size: 13px;
+			font-weight: 500;
+			text-decoration: none;
+			border-radius: 3px;
+			letter-spacing: 0.04em;
+			transition: background 0.2s, transform 0.15s;
+		}
 
-    .how-number {
-      font-family: var(--mono);
-      font-size: 11px;
-      color: var(--text3);
-      letter-spacing: 0.1em;
-      margin-bottom: 20px;
-    }
+		.btn-primary:hover {
+			background: var(--accent-dim);
+			transform: translateY(-1px);
+		}
 
-    .how-title {
-      font-family: var(--serif);
-      font-size: 26px;
-      font-weight: 400;
-      color: var(--text);
-      margin-bottom: 12px;
-      line-height: 1.2;
-    }
+		.btn-secondary {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			padding: 13px 28px;
+			background: transparent;
+			color: var(--text2);
+			font-family: var(--mono);
+			font-size: 13px;
+			text-decoration: none;
+			border: 1px solid var(--border);
+			border-radius: 3px;
+			letter-spacing: 0.04em;
+			transition: border-color 0.2s, color 0.2s;
+		}
 
-    .how-desc {
-      font-size: 14px;
-      color: var(--text2);
-      line-height: 1.7;
-      font-weight: 300;
-    }
+		.btn-secondary:hover {
+			border-color: var(--text2);
+			color: var(--text);
+		}
 
-    /* ── FEATURES ── */
-    .features-layout {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 48px 80px;
-      max-width: 860px;
-    }
+		.hero-address {
+			margin-top: 64px;
+			padding-top: 28px;
+			border-top: 1px solid var(--border);
+			display: flex;
+			align-items: center;
+			gap: 12px;
+			opacity: 0;
+			animation: fadeUp 0.7s 0.65s ease forwards;
+		}
 
-    .feature-item {}
+		.hero-address-label {
+			font-family: var(--mono);
+			font-size: 10px;
+			color: var(--text3);
+			letter-spacing: 0.1em;
+			text-transform: uppercase;
+		}
 
-    .feature-icon {
-      width: 36px;
-      height: 36px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 14px;
-      color: var(--accent);
-    }
+		.hero-address-value {
+			font-family: var(--mono);
+			font-size: 12px;
+			color: var(--accent);
+			letter-spacing: 0.03em;
+		}
 
-    .feature-title {
-      font-family: var(--sans);
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--text);
-      margin-bottom: 6px;
-      letter-spacing: -0.01em;
-    }
+		/* ── SECTION SHARED ── */
+		section {
+			padding: 100px 48px;
+			border-top: 1px solid var(--border);
+		}
 
-    .feature-desc {
-      font-size: 13.5px;
-      color: var(--text2);
-      line-height: 1.65;
-      font-weight: 300;
-    }
+		.section-label {
+			font-family: var(--mono);
+			font-size: 10px;
+			color: var(--text3);
+			letter-spacing: 0.14em;
+			text-transform: uppercase;
+			margin-bottom: 48px;
+			display: flex;
+			align-items: center;
+			gap: 12px;
+		}
 
-    /* ── TERMINAL ── */
-    .terminal-section {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 80px;
-      align-items: center;
-    }
+		.section-label::after {
+			content: '';
+			flex: 1;
+			max-width: 48px;
+			height: 1px;
+			background: var(--border);
+		}
 
-    .terminal-text h2 {
-      font-family: var(--serif);
-      font-size: clamp(32px, 4vw, 52px);
-      font-weight: 400;
-      line-height: 1.15;
-      color: var(--text);
-      margin-bottom: 20px;
-    }
-    .terminal-text h2 em { font-style: italic; color: var(--accent); }
-    .terminal-text p {
-      font-size: 15px;
-      color: var(--text2);
-      line-height: 1.7;
-      font-weight: 300;
-      margin-bottom: 12px;
-    }
+		/* ── HOW IT WORKS ── */
+		.how-grid {
+			display: grid;
+			grid-template-columns: repeat(3, 1fr);
+			gap: 1px;
+			background: var(--border);
+			border: 1px solid var(--border);
+		}
 
-    .terminal {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      overflow: hidden;
-    }
+		.how-item {
+			background: var(--bg);
+			padding: 40px 36px;
+			transition: background 0.2s;
+		}
 
-    .terminal-bar {
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .terminal-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: var(--border);
-    }
-    .terminal-title {
-      font-family: var(--mono);
-      font-size: 11px;
-      color: var(--text3);
-      margin-left: 4px;
-      letter-spacing: 0.05em;
-    }
+		.how-item:hover {
+			background: var(--bg2);
+		}
 
-    .terminal-body {
-      padding: 24px;
-      font-family: var(--mono);
-      font-size: 13px;
-      line-height: 2;
-    }
+		.how-number {
+			font-family: var(--mono);
+			font-size: 11px;
+			color: var(--text3);
+			letter-spacing: 0.1em;
+			margin-bottom: 20px;
+		}
 
-    .t-comment { color: var(--text3); }
-    .t-prompt { color: var(--text3); }
-    .t-cmd { color: var(--text); }
-    .t-output { color: var(--text2); }
-    .t-hash { color: var(--accent); }
-    .t-success { color: #4ade80; }
-    .t-line { display: block; }
-    .t-cursor {
-      display: inline-block;
-      width: 8px;
-      height: 14px;
-      background: var(--accent);
-      vertical-align: middle;
-      animation: blink 1.2s step-end infinite;
-    }
+		.how-title {
+			font-family: var(--serif);
+			font-size: 26px;
+			font-weight: 400;
+			color: var(--text);
+			margin-bottom: 12px;
+			line-height: 1.2;
+		}
 
-    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+		.how-desc {
+			font-size: 14px;
+			color: var(--text2);
+			line-height: 1.7;
+			font-weight: 300;
+		}
 
-    /* ── MANIFESTO ── */
-    .manifesto {
-      max-width: 680px;
-      margin: 0 auto;
-      text-align: center;
-    }
+		/* ── FEATURES ── */
+		.features-layout {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 48px 80px;
+			max-width: 860px;
+		}
 
-    .manifesto blockquote {
-      font-family: var(--serif);
-      font-size: clamp(24px, 3.5vw, 42px);
-      font-weight: 400;
-      font-style: italic;
-      line-height: 1.3;
-      color: var(--text);
-      margin-bottom: 24px;
-    }
+		.feature-item {}
 
-    .manifesto cite {
-      font-family: var(--mono);
-      font-size: 12px;
-      color: var(--text3);
-      letter-spacing: 0.08em;
-      font-style: normal;
-    }
+		.feature-icon {
+			width: 36px;
+			height: 36px;
+			border: 1px solid var(--border);
+			border-radius: 6px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			margin-bottom: 14px;
+			color: var(--accent);
+		}
 
-    /* ── DOWNLOAD ── */
-    .download-section {
-      text-align: center;
-    }
+		.feature-title {
+			font-family: var(--sans);
+			font-size: 14px;
+			font-weight: 500;
+			color: var(--text);
+			margin-bottom: 6px;
+			letter-spacing: -0.01em;
+		}
 
-    .download-section h2 {
-      font-family: var(--serif);
-      font-size: clamp(36px, 5vw, 64px);
-      font-weight: 400;
-      color: var(--text);
-      margin-bottom: 16px;
-    }
-    .download-section h2 em { font-style: italic; color: var(--accent); }
+		.feature-desc {
+			font-size: 13.5px;
+			color: var(--text2);
+			line-height: 1.65;
+			font-weight: 300;
+		}
 
-    .download-section p {
-      font-size: 15px;
-      color: var(--text2);
-      margin-bottom: 40px;
-      font-weight: 300;
-    }
+		/* ── TERMINAL ── */
+		.terminal-section {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 80px;
+			align-items: center;
+		}
 
-    .download-actions {
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
+		.terminal-text h2 {
+			font-family: var(--serif);
+			font-size: clamp(32px, 4vw, 52px);
+			font-weight: 400;
+			line-height: 1.15;
+			color: var(--text);
+			margin-bottom: 20px;
+		}
 
-    .platform-badge {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 20px;
-      border: 1px solid var(--border);
-      border-radius: 3px;
-      font-family: var(--mono);
-      font-size: 12px;
-      color: var(--text2);
-      background: var(--bg2);
-    }
+		.terminal-text h2 em {
+			font-style: italic;
+			color: var(--accent);
+		}
 
-    /* ── FOOTER ── */
-    footer {
-      padding: 40px 48px;
-      border-top: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
+		.terminal-text p {
+			font-size: 15px;
+			color: var(--text2);
+			line-height: 1.7;
+			font-weight: 300;
+			margin-bottom: 12px;
+		}
 
-    .footer-left {
-      font-family: var(--mono);
-      font-size: 12px;
-      color: var(--text3);
-    }
+		.terminal {
+			background: var(--bg2);
+			border: 1px solid var(--border);
+			border-radius: 6px;
+			overflow: hidden;
+		}
 
-    .footer-right {
-      font-family: var(--mono);
-      font-size: 11px;
-      color: var(--text3);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .footer-right span { color: var(--accent); }
+		.terminal-bar {
+			padding: 12px 16px;
+			border-bottom: 1px solid var(--border);
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
 
-    /* ── ANIMATIONS ── */
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(16px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
+		.terminal-dot {
+			width: 10px;
+			height: 10px;
+			border-radius: 50%;
+			background: var(--border);
+		}
 
-    .reveal {
-      opacity: 0;
-      transform: translateY(20px);
-      transition: opacity 0.6s ease, transform 0.6s ease;
-	  will-change: opacity, transform;
-    }
-    .reveal.visible {
-      opacity: 1;
-      transform: none;
-    }
+		.terminal-title {
+			font-family: var(--mono);
+			font-size: 11px;
+			color: var(--text3);
+			margin-left: 4px;
+			letter-spacing: 0.05em;
+		}
 
-	.hero-headline,
-	.hero-tag,
-	.hero-sub,
-	.hero-actions,
-	.hero-address {
-	  will-change: opacity, transform;
-	}
+		.terminal-body {
+			padding: 24px;
+			font-family: var(--mono);
+			font-size: 13px;
+			line-height: 2;
+		}
 
-    /* ── RESPONSIVE ── */
-    @media (max-width: 900px) {
-      nav { padding: 16px 24px; }
-      .hero { padding: 100px 24px 60px; }
-      section { padding: 70px 24px; }
-      .how-grid { grid-template-columns: 1fr; }
-      .features-layout { grid-template-columns: 1fr; gap: 32px; }
-      .terminal-section { grid-template-columns: 1fr; gap: 40px; }
-      footer { padding: 32px 24px; flex-direction: column; gap: 12px; text-align: center; }
-    }
-  </style>
+		.t-comment {
+			color: var(--text3);
+		}
+
+		.t-prompt {
+			color: var(--text3);
+		}
+
+		.t-cmd {
+			color: var(--text);
+		}
+
+		.t-output {
+			color: var(--text2);
+		}
+
+		.t-hash {
+			color: var(--accent);
+		}
+
+		.t-success {
+			color: #4ade80;
+		}
+
+		.t-line {
+			display: block;
+		}
+
+		.t-cursor {
+			display: inline-block;
+			width: 8px;
+			height: 14px;
+			background: var(--accent);
+			vertical-align: middle;
+			animation: blink 1.2s step-end infinite;
+		}
+
+		@keyframes blink {
+
+			0%,
+			100% {
+				opacity: 1;
+			}
+
+			50% {
+				opacity: 0;
+			}
+		}
+
+		/* ── MANIFESTO ── */
+		.manifesto {
+			max-width: 680px;
+			margin: 0 auto;
+			text-align: center;
+		}
+
+		.manifesto blockquote {
+			font-family: var(--serif);
+			font-size: clamp(24px, 3.5vw, 42px);
+			font-weight: 400;
+			font-style: italic;
+			line-height: 1.3;
+			color: var(--text);
+			margin-bottom: 24px;
+		}
+
+		.manifesto cite {
+			font-family: var(--mono);
+			font-size: 12px;
+			color: var(--text3);
+			letter-spacing: 0.08em;
+			font-style: normal;
+		}
+
+		/* ── DOWNLOAD ── */
+		.download-section {
+			text-align: center;
+		}
+
+		.download-section h2 {
+			font-family: var(--serif);
+			font-size: clamp(36px, 5vw, 64px);
+			font-weight: 400;
+			color: var(--text);
+			margin-bottom: 16px;
+		}
+
+		.download-section h2 em {
+			font-style: italic;
+			color: var(--accent);
+		}
+
+		.download-section p {
+			font-size: 15px;
+			color: var(--text2);
+			margin-bottom: 40px;
+			font-weight: 300;
+		}
+
+		.download-actions {
+			display: flex;
+			justify-content: center;
+			gap: 12px;
+			flex-wrap: wrap;
+		}
+
+		.platform-badge {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			padding: 10px 20px;
+			border: 1px solid var(--border);
+			border-radius: 3px;
+			font-family: var(--mono);
+			font-size: 12px;
+			color: var(--text2);
+			background: var(--bg2);
+		}
+
+		/* ── FOOTER ── */
+		footer {
+			padding: 40px 48px;
+			border-top: 1px solid var(--border);
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+		}
+
+		.footer-left {
+			font-family: var(--mono);
+			font-size: 12px;
+			color: var(--text3);
+		}
+
+		.footer-right {
+			font-family: var(--mono);
+			font-size: 11px;
+			color: var(--text3);
+			display: flex;
+			align-items: center;
+			gap: 6px;
+		}
+
+		.footer-right span {
+			color: var(--accent);
+		}
+
+		/* ── ANIMATIONS ── */
+		@keyframes fadeUp {
+			from {
+				opacity: 0;
+				transform: translateY(16px);
+			}
+
+			to {
+				opacity: 1;
+				transform: translateY(0);
+			}
+		}
+
+		.reveal {
+			opacity: 0;
+			transform: translateY(20px);
+			transition: opacity 0.6s ease, transform 0.6s ease;
+			will-change: opacity, transform;
+		}
+
+		.reveal.visible {
+			opacity: 1;
+			transform: none;
+		}
+
+		.hero-headline,
+		.hero-tag,
+		.hero-sub,
+		.hero-actions,
+		.hero-address {
+			will-change: opacity, transform;
+		}
+
+		/* ── RESPONSIVE ── */
+		@media (max-width: 900px) {
+			nav {
+				padding: 16px 24px;
+			}
+
+			.hero {
+				padding: 100px 24px 60px;
+			}
+
+			section {
+				padding: 70px 24px;
+			}
+
+			.how-grid {
+				grid-template-columns: 1fr;
+			}
+
+			.features-layout {
+				grid-template-columns: 1fr;
+				gap: 32px;
+			}
+
+			.terminal-section {
+				grid-template-columns: 1fr;
+				gap: 40px;
+			}
+
+			footer {
+				padding: 32px 24px;
+				flex-direction: column;
+				gap: 12px;
+				text-align: center;
+			}
+		}
+	</style>
 </head>
+
 <body>
 
-  <!-- NAV -->
-  <nav id="nav">
-    <a href="#" class="nav-logo">
-      <span></span>
-      sísifo
-    </a>
-    <ul class="nav-links">
-      <li><a href="#how">how it works</a></li>
-      <li><a href="#features">features</a></li>
-      <li><a href="#download">download</a></li>
-    </ul>
-  </nav>
+	<!-- NAV -->
+	<nav id="nav">
+		<a href="#" class="nav-logo">
+			<span></span>
+			sísifo
+		</a>
+		<ul class="nav-links">
+			<li><a href="#how">how it works</a></li>
+			<li><a href="#features">features</a></li>
+			<li><a href="#download">download</a></li>
+		</ul>
+	</nav>
 
-  <!-- HERO -->
-  <section class="hero" id="hero">
-    <div class="hero-tag">Open source · Decentralized · Peer-to-peer</div>
-    <h1 class="hero-headline">
-      The web,<br/>
-      <em>unchained.</em>
-    </h1>
-    <p class="hero-sub">
-      Sísifo is a browser where users host their own sites. No servers. No domains. No intermediaries. Just content hashes, peer discovery, and the iroh DHT.
-    </p>
-    <div class="hero-actions">
-      <a href="#download" class="btn-primary">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Download
-      </a>
-      <a href="https://github.com" class="btn-secondary">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-        Source
-      </a>
-    </div>
-    <div class="hero-address">
-      <span class="hero-address-label">you are viewing this page via</span>
-      <span class="hero-address-value">sisi://bafyreic3n7…a4qx</span>
-    </div>
-  </section>
+	<!-- HERO -->
+	<section class="hero" id="hero">
+		<div class="hero-tag">Open source · Decentralized · Peer-to-peer</div>
+		<h1 class="hero-headline">
+			The web,<br />
+			<em>unchained.</em>
+		</h1>
+		<p class="hero-sub">
+			Sísifo is a browser where users host their own sites. No servers. No domains. No intermediaries. Just
+			content hashes, peer discovery, and the iroh DHT.
+		</p>
+		<div class="hero-actions">
+			<a href="#download" class="btn-primary">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+					stroke-linecap="round" stroke-linejoin="round">
+					<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+					<polyline points="7 10 12 15 17 10" />
+					<line x1="12" y1="15" x2="12" y2="3" />
+				</svg>
+				Download
+			</a>
+			<a href="https://github.com" class="btn-secondary">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+					stroke-linecap="round" stroke-linejoin="round">
+					<path
+						d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+				</svg>
+				Source
+			</a>
+		</div>
+		<div class="hero-address">
+			<span class="hero-address-label">you are viewing this page via</span>
+			<span class="hero-address-value">sisi://bafyreic3n7…a4qx</span>
+		</div>
+	</section>
 
-  <!-- HOW IT WORKS -->
-  <section id="how">
-    <div class="section-label">01 — How it works</div>
-    <div class="how-grid reveal">
-      <div class="how-item">
-        <div class="how-number">01</div>
-        <div class="how-title">Publish your files</div>
-        <div class="how-desc">Drop a folder into Sísifo. Every file is hashed using BLAKE3 and stored as a content-addressed blob. A signed manifest ties them together.</div>
-      </div>
-      <div class="how-item">
-        <div class="how-number">02</div>
-        <div class="how-title">Get a permanent address</div>
-        <div class="how-desc">Your site's manifest hash becomes its address. Permanent, unforgeable, and tied to your ed25519 identity. No DNS. No registrar.</div>
-      </div>
-      <div class="how-item">
-        <div class="how-number">03</div>
-        <div class="how-title">Peers spread the word</div>
-        <div class="how-desc">Anyone who visits your site starts seeding it. The iroh DHT routes requests to whoever has the content — the more visitors, the more resilient.</div>
-      </div>
-    </div>
-  </section>
+	<!-- HOW IT WORKS -->
+	<section id="how">
+		<div class="section-label">01 — How it works</div>
+		<div class="how-grid reveal">
+			<div class="how-item">
+				<div class="how-number">01</div>
+				<div class="how-title">Publish your files</div>
+				<div class="how-desc">Drop a folder into Sísifo. Every file is hashed using BLAKE3 and stored as a
+					content-addressed blob. A signed manifest ties them together.</div>
+			</div>
+			<div class="how-item">
+				<div class="how-number">02</div>
+				<div class="how-title">Get a permanent address</div>
+				<div class="how-desc">Your site's manifest hash becomes its address. Permanent, unforgeable, and tied to
+					your ed25519 identity. No DNS. No registrar.</div>
+			</div>
+			<div class="how-item">
+				<div class="how-number">03</div>
+				<div class="how-title">Peers spread the word</div>
+				<div class="how-desc">Anyone who visits your site starts seeding it. The iroh DHT routes requests to
+					whoever has the content — the more visitors, the more resilient.</div>
+			</div>
+		</div>
+	</section>
 
-  <!-- FEATURES -->
-  <section id="features">
-    <div class="section-label">02 — Features</div>
-    <div class="features-layout">
-      <div class="feature-item reveal">
-        <div class="feature-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        </div>
-        <div class="feature-title">Content addressing</div>
-        <div class="feature-desc">Sites are addressed by what they contain, not where they live. The hash is the address — tamper-proof and permanent.</div>
-      </div>
-      <div class="feature-item reveal">
-        <div class="feature-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
-        </div>
-        <div class="feature-title">Persistent daemon</div>
-        <div class="feature-desc">Run <code style="font-family: var(--mono); font-size: 12px; color: var(--accent)">sisid</code> as a systemd user service to seed your sites 24/7, even when the browser is closed.</div>
-      </div>
-      <div class="feature-item reveal">
-        <div class="feature-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-        </div>
-        <div class="feature-title">Built in Rust</div>
-        <div class="feature-desc">The node, gateway, publisher, and daemon are all written in Rust. Minimal memory footprint, no runtime, no GC pauses.</div>
-      </div>
-      <div class="feature-item reveal">
-        <div class="feature-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        </div>
-        <div class="feature-title">Signed manifests</div>
-        <div class="feature-desc">Every site manifest is signed with your ed25519 keypair. Visitors can verify authorship without trusting a third party.</div>
-      </div>
-      <div class="feature-item reveal">
-        <div class="feature-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        </div>
-        <div class="feature-title">NAT traversal</div>
-        <div class="feature-desc">iroh's QUIC hole-punching gets through most NATs. DERP relay fallback handles the rest — peers connect regardless of network topology.</div>
-      </div>
-      <div class="feature-item reveal">
-        <div class="feature-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-        </div>
-        <div class="feature-title">Normal websites</div>
-        <div class="feature-desc">Sites are plain HTML, CSS, and JS served via a local gateway. No new format to learn — if it runs in a browser, it runs in Sísifo.</div>
-      </div>
-    </div>
-  </section>
+	<!-- FEATURES -->
+	<section id="features">
+		<div class="section-label">02 — Features</div>
+		<div class="features-layout">
+			<div class="feature-item reveal">
+				<div class="feature-icon">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+						stroke-linecap="round" stroke-linejoin="round">
+						<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+					</svg>
+				</div>
+				<div class="feature-title">Content addressing</div>
+				<div class="feature-desc">Sites are addressed by what they contain, not where they live. The hash is the
+					address — tamper-proof and permanent.</div>
+			</div>
+			<div class="feature-item reveal">
+				<div class="feature-icon">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+						stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="12" cy="12" r="3" />
+						<path
+							d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+					</svg>
+				</div>
+				<div class="feature-title">Persistent daemon</div>
+				<div class="feature-desc">Run <code
+						style="font-family: var(--mono); font-size: 12px; color: var(--accent)">sisid</code> as a
+					systemd user service to seed your sites 24/7, even when the browser is closed.</div>
+			</div>
+			<div class="feature-item reveal">
+				<div class="feature-icon">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+						stroke-linecap="round" stroke-linejoin="round">
+						<path
+							d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+					</svg>
+				</div>
+				<div class="feature-title">Built in Rust</div>
+				<div class="feature-desc">The node, gateway, publisher, and daemon are all written in Rust. Minimal
+					memory footprint, no runtime, no GC pauses.</div>
+			</div>
+			<div class="feature-item reveal">
+				<div class="feature-icon">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+						stroke-linecap="round" stroke-linejoin="round">
+						<rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+						<path d="M7 11V7a5 5 0 0 1 10 0v4" />
+					</svg>
+				</div>
+				<div class="feature-title">Signed manifests</div>
+				<div class="feature-desc">Every site manifest is signed with your ed25519 keypair. Visitors can verify
+					authorship without trusting a third party.</div>
+			</div>
+			<div class="feature-item reveal">
+				<div class="feature-icon">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+						stroke-linecap="round" stroke-linejoin="round">
+						<polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+					</svg>
+				</div>
+				<div class="feature-title">NAT traversal</div>
+				<div class="feature-desc">iroh's QUIC hole-punching gets through most NATs. DERP relay fallback handles
+					the rest — peers connect regardless of network topology.</div>
+			</div>
+			<div class="feature-item reveal">
+				<div class="feature-icon">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+						stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="12" cy="12" r="10" />
+						<line x1="2" y1="12" x2="22" y2="12" />
+						<path
+							d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+					</svg>
+				</div>
+				<div class="feature-title">Normal websites</div>
+				<div class="feature-desc">Sites are plain HTML, CSS, and JS served via a local gateway. No new format to
+					learn — if it runs in a browser, it runs in Sísifo.</div>
+			</div>
+		</div>
+	</section>
 
-  <!-- TERMINAL -->
-  <section>
-    <div class="terminal-section">
-      <div class="terminal-text reveal">
-        <h2>Publish in <em>seconds.</em></h2>
-        <p>Select a folder, give your site a name, and hit publish. Sísifo hashes every file, builds a signed manifest, and announces it to the DHT.</p>
-        <p>Your site is live the moment the first peer fetches it.</p>
-      </div>
-      <div class="terminal reveal">
-        <div class="terminal-bar">
-          <div class="terminal-dot"></div>
-          <div class="terminal-dot"></div>
-          <div class="terminal-dot"></div>
-          <span class="terminal-title">sisid — daemon</span>
-        </div>
-        <div class="terminal-body">
-          <span class="t-line"><span class="t-comment"># start the seeding daemon</span></span>
-          <span class="t-line"><span class="t-prompt">$ </span><span class="t-cmd">systemctl --user start sisid</span></span>
-          <span class="t-line"><span class="t-output">● sisid.service — Sísifo daemon</span></span>
-          <span class="t-line"><span class="t-success">     Active: active (running)</span></span>
-          <span class="t-line">&nbsp;</span>
-          <span class="t-line"><span class="t-comment"># publish a site from CLI</span></span>
-          <span class="t-line"><span class="t-prompt">$ </span><span class="t-cmd">sisid pin add ./my-site</span></span>
-          <span class="t-line"><span class="t-output">hashing files…    <span class="t-success">✓</span></span></span>
-          <span class="t-line"><span class="t-output">signing manifest… <span class="t-success">✓</span></span></span>
-          <span class="t-line"><span class="t-output">announcing DHT…   <span class="t-success">✓</span></span></span>
-          <span class="t-line">&nbsp;</span>
-          <span class="t-line"><span class="t-output">address: </span><span class="t-hash">sisi://bafyreic3n7f…a4qx</span></span>
-          <span class="t-line"><span class="t-prompt">$ </span><span class="t-cursor"></span></span>
-        </div>
-      </div>
-    </div>
-  </section>
+	<!-- TERMINAL -->
+	<section>
+		<div class="terminal-section">
+			<div class="terminal-text reveal">
+				<h2>Publish in <em>seconds.</em></h2>
+				<p>Select a folder, give your site a name, and hit publish. Sísifo hashes every file, builds a signed
+					manifest, and announces it to the DHT.</p>
+				<p>Your site is live the moment the first peer fetches it.</p>
+			</div>
+			<div class="terminal reveal">
+				<div class="terminal-bar">
+					<div class="terminal-dot"></div>
+					<div class="terminal-dot"></div>
+					<div class="terminal-dot"></div>
+					<span class="terminal-title">sisid — daemon</span>
+				</div>
+				<div class="terminal-body">
+					<span class="t-line"><span class="t-comment"># start the seeding daemon</span></span>
+					<span class="t-line"><span class="t-prompt">$ </span><span class="t-cmd">systemctl --user start
+							sisid</span></span>
+					<span class="t-line"><span class="t-output">● sisid.service — Sísifo daemon</span></span>
+					<span class="t-line"><span class="t-success"> Active: active (running)</span></span>
+					<span class="t-line">&nbsp;</span>
+					<span class="t-line"><span class="t-comment"># publish a site from CLI</span></span>
+					<span class="t-line"><span class="t-prompt">$ </span><span class="t-cmd">sisid pin add
+							./my-site</span></span>
+					<span class="t-line"><span class="t-output">hashing files… <span
+								class="t-success">✓</span></span></span>
+					<span class="t-line"><span class="t-output">signing manifest… <span
+								class="t-success">✓</span></span></span>
+					<span class="t-line"><span class="t-output">announcing DHT… <span
+								class="t-success">✓</span></span></span>
+					<span class="t-line">&nbsp;</span>
+					<span class="t-line"><span class="t-output">address: </span><span
+							class="t-hash">sisi://bafyreic3n7f…a4qx</span></span>
+					<span class="t-line"><span class="t-prompt">$ </span><span class="t-cursor"></span></span>
+				</div>
+			</div>
+		</div>
+	</section>
 
-  <!-- MANIFESTO -->
-  <section style="border-top: 1px solid var(--border)">
-    <div class="manifesto reveal">
-      <blockquote>
-        "The web was always meant to be decentralized. We just forgot."
-      </blockquote>
-      <cite>— sísifo project</cite>
-    </div>
-  </section>
+	<!-- MANIFESTO -->
+	<section style="border-top: 1px solid var(--border)">
+		<div class="manifesto reveal">
+			<blockquote>
+				"The web was always meant to be decentralized. We just forgot."
+			</blockquote>
+			<cite>— sísifo project</cite>
+		</div>
+	</section>
 
-  <!-- DOWNLOAD -->
-  <section id="download">
-    <div class="download-section reveal">
-      <h2>Ready to host <em>yourself?</em></h2>
-      <p>Available for Linux. macOS and Windows coming soon.</p>
-      <div class="download-actions">
-        <a href="#" class="btn-primary">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Linux x86_64 (.tar.gz)
-        </a>
-        <a href="#" class="btn-secondary">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-          Build from source
-        </a>
-        <div class="platform-badge">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          macOS — coming soon
-        </div>
-      </div>
-    </div>
-  </section>
+	<!-- DOWNLOAD -->
+	<section id="download">
+		<div class="download-section reveal">
+			<h2>Ready to host <em>yourself?</em></h2>
+			<p>Available for Linux. macOS and Windows coming soon.</p>
+			<div class="download-actions">
+				<a href="#" class="btn-primary">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+						stroke-linecap="round" stroke-linejoin="round">
+						<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+						<polyline points="7 10 12 15 17 10" />
+						<line x1="12" y1="15" x2="12" y2="3" />
+					</svg>
+					Linux x86_64 (.tar.gz)
+				</a>
+				<a href="https://github.com/chikof/sisifo" class="btn-secondary">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+						stroke-linecap="round" stroke-linejoin="round">
+						<path
+							d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+					</svg>
+					Build from source
+				</a>
+				<div class="platform-badge">
+					<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+						stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="12" cy="12" r="10" />
+						<line x1="12" y1="8" x2="12" y2="12" />
+						<line x1="12" y1="16" x2="12.01" y2="16" />
+					</svg>
+					macOS — coming soon
+				</div>
+			</div>
+		</div>
+	</section>
 
-  <!-- FOOTER -->
-  <footer>
-    <div class="footer-left">
-      sísifo · open source · built with iroh + tauri + svelte
-    </div>
-    <div class="footer-right">
-      this page is hosted on sísifo <span>●</span>
-    </div>
-  </footer>
+	<!-- FOOTER -->
+	<footer>
+		<div class="footer-left">
+			sísifo · open source · built with iroh + tauri + svelte
+		</div>
+		<div class="footer-right">
+			this page is hosted on sísifo <span>●</span>
+		</div>
+	</footer>
 
- <script>
-   const nav = document.getElementById('nav');
-   window.addEventListener('scroll', () => {
-     nav.classList.toggle('scrolled', window.scrollY > 20);
-   }, { passive: true });  // ← this is the key fix
+	<script>
+		const nav = document.getElementById('nav');
+		window.addEventListener('scroll', () => {
+			nav.classList.toggle('scrolled', window.scrollY > 20);
+		}, {passive: true});  // ← this is the key fix
 
-   const observer = new IntersectionObserver((entries) => {
-     entries.forEach((entry, i) => {
-       if (entry.isIntersecting) {
-         setTimeout(() => entry.target.classList.add('visible'), i * 80);
-         observer.unobserve(entry.target);
-       }
-     });
-   }, { threshold: 0.1 });
+		const observer = new IntersectionObserver((entries) => {
+			entries.forEach((entry, i) => {
+				if (entry.isIntersecting) {
+					setTimeout(() => entry.target.classList.add('visible'), i * 80);
+					observer.unobserve(entry.target);
+				}
+			});
+		}, {threshold: 0.1});
 
-   document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
- </script>
+		document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+	</script>
 </body>
+
 </html>

@@ -7,4 +7,6 @@ pub struct NodeStats {
     pub bytes_sent: u64,
     pub bytes_recv: u64,
     pub hosted_sites: usize,
+    pub relay_url: Option<String>,
+    pub is_online: bool,
 }

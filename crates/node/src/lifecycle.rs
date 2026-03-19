@@ -1,6 +1,9 @@
 use iroh::{Endpoint, endpoint::presets, protocol::Router};
 use iroh_blobs::{BlobsProtocol, store::fs::FsStore};
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::{Arc, atomic::AtomicUsize},
+};
 use tokio::sync::OnceCell;
 use tracing::info;
 use types::{Result, SisiError};
@@ -12,6 +15,7 @@ pub struct NodeHandle {
     pub blobs: BlobsProtocol,
     pub endpoint: Endpoint,
     pub data_dir: PathBuf,
+    pub peer_count: Arc<AtomicUsize>,
 }
 
 pub struct SisiNode;
@@ -34,6 +38,7 @@ impl SisiNode {
             .map_err(|e| SisiError::Iroh(anyhow::anyhow!(e)))?;
 
         let blobs = BlobsProtocol::new(&blobs_store, None);
+        let peer_count = Arc::new(AtomicUsize::new(0));
 
         let router = Router::builder(endpoint.clone())
             .accept(iroh_blobs::ALPN, blobs.clone())
@@ -44,6 +49,7 @@ impl SisiNode {
             blobs,
             endpoint,
             data_dir: data_dir.to_path_buf(),
+            peer_count,
         })
         .map_err(|_| SisiError::Iroh(anyhow::anyhow!("node already started")))?;
 
