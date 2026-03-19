@@ -1,8 +1,8 @@
 services:
   sisi-infra:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: sisi-infra/Dockerfile
     container_name: sisi-infra
     restart: unless-stopped
     ports:
