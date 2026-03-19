@@ -10,6 +10,7 @@ members = [
   "crates/sisi-daemon",
   "src-tauri",
   "sisi-infra",
+  "crates/gossip",
 ]
 
 [workspace.dependencies]
@@ -29,3 +30,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 getrandom = "0.4.2"
 hex = "0.4.3"
 dirs = "6.0.0"
+iroh-gossip = "0.97.0"
+ulid = "1.2.1"
+rusqlite = { version = "0.39.0", features = ["bundled"] }
+tokio-stream = "0.1.18"
+sha2 = "0.10.9"

@@ -1,6 +1,7 @@
 use crate::pinset::PinSet;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::atomic::Ordering;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
 use types::Result;
@@ -100,7 +101,7 @@ async fn dispatch(cmd: DaemonCommand, pin_set: &PinSet) -> DaemonResponse {
             let node = node::SisiNode::get().unwrap();
             let node_id = node.endpoint.id().to_string();
             DaemonResponse::Status {
-                peer_count: 0, // TODO: wire up iroh connection count
+                peer_count: node.peer_count.load(Ordering::Relaxed),
                 pinned: pin_set.list().await.len(),
                 node_id,
             }

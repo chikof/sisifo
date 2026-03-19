@@ -48,6 +48,12 @@ pub fn run() {
             commands::daemon_running,
             commands::unpin_site,
             commands::pick_folder,
+            commands::post_message,
+            commands::reply_message,
+            commands::list_messages,
+            commands::list_replies,
+            commands::subscribe_topic,
+            commands::delete_message,
         ])
         .run(tauri::generate_context!())
         .expect("error running tauri application");
