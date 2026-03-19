@@ -1,5 +1,6 @@
-use node::{SisiNode, signing_key};
+use node::{NodeConfig, SisiNode, signing_key};
 use sisi_daemon::{ipc, pinset::PinSet};
+use std::env::var;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -10,8 +11,18 @@ async fn main() -> anyhow::Result<()> {
     let data_dir = data_dir();
     tokio::fs::create_dir_all(&data_dir).await?;
 
+    let config = if let (Ok(relay), Ok(pkarr), Ok(dns)) = (
+        var("SISI_RELAY_URL"),
+        var("SISI_PKARR_URL"),
+        var("SISI_DNS_ORIGIN"),
+    ) {
+        NodeConfig::custom(&relay, &pkarr, &dns)
+    } else {
+        NodeConfig::default()
+    };
+
     tracing::info!("starting sisid at {:?}", data_dir);
-    SisiNode::start(&data_dir).await?;
+    SisiNode::start(&data_dir, config).await?;
 
     let key = signing_key().await?;
     tracing::info!(

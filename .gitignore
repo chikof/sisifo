@@ -4,3 +4,4 @@ result
 **/gen/schemas
 **/node_modules
 **/dist
+**/.env

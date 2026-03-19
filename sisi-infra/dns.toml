@@ -1,0 +1,9 @@
+[dns]
+origin = "${DNS_ORIGIN}"
+port = 5353
+
+[http]
+port = 8080
+
+[store]
+data_dir = "/data"

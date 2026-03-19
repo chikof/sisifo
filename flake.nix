@@ -28,6 +28,8 @@
           nodejs
           pnpm
           gsettings-desktop-schemas
+          iroh-relay
+          iroh-dns-server
         ];
 
       devShell.env = pkgs: {

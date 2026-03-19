@@ -1,0 +1,8 @@
+[relay]
+hostname = "${RELAY_HOSTNAME}"
+port = 443
+
+[tls]
+cert_mode = "letsencrypt"
+contact = "${ACME_CONTACT}"
+cert_dir = "/certs"

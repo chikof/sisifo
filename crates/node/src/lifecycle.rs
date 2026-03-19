@@ -1,4 +1,10 @@
-use iroh::{Endpoint, endpoint::presets, protocol::Router};
+use crate::config::NodeConfig;
+use iroh::{
+    Endpoint, RelayMap, RelayUrl, RelayUrlParseError,
+    address_lookup::{DnsAddressLookup, PkarrPublisher, PkarrResolver},
+    endpoint::{RelayMode, presets},
+    protocol::Router,
+};
 use iroh_blobs::{BlobsProtocol, store::fs::FsStore};
 use std::{
     path::{Path, PathBuf},
@@ -21,7 +27,7 @@ pub struct NodeHandle {
 pub struct SisiNode;
 
 impl SisiNode {
-    pub async fn start(data_dir: &Path) -> Result<()> {
+    pub async fn start(data_dir: &Path, config: NodeConfig) -> Result<()> {
         if NODE.initialized() {
             return Ok(());
         }
@@ -29,9 +35,7 @@ impl SisiNode {
         info!("starting iroh node at {:?}", data_dir);
         tokio::fs::create_dir_all(data_dir).await?;
 
-        let endpoint = Endpoint::bind(presets::N0)
-            .await
-            .map_err(|e| SisiError::Iroh(anyhow::anyhow!(e)))?;
+        let endpoint = Self::build_endpoint(&config).await?;
 
         let blobs_store = FsStore::load(data_dir.join("blobs"))
             .await
@@ -40,7 +44,7 @@ impl SisiNode {
         let blobs = BlobsProtocol::new(&blobs_store, None);
         let peer_count = Arc::new(AtomicUsize::new(0));
 
-        let router = Router::builder(endpoint.clone())
+        let router = iroh::protocol::Router::builder(endpoint.clone())
             .accept(iroh_blobs::ALPN, blobs.clone())
             .spawn();
 
@@ -55,6 +59,44 @@ impl SisiNode {
 
         info!("sisi node started");
         Ok(())
+    }
+
+    async fn build_endpoint(config: &NodeConfig) -> Result<Endpoint> {
+        if config.relay_url.is_some() || config.pkarr_url.is_some() {
+            let relay_mode = match &config.relay_url {
+                Some(url) => {
+                    let relay_url: RelayUrl = url
+                        .parse()
+                        .map_err(|e: RelayUrlParseError| SisiError::Iroh(anyhow::anyhow!(e)))?;
+                    RelayMode::Custom(RelayMap::from(relay_url))
+                }
+                None => RelayMode::Default,
+            };
+
+            let mut builder = Endpoint::empty_builder().relay_mode(relay_mode);
+
+            if let Some(pkarr_url) = &config.pkarr_url {
+                let url: url::Url = pkarr_url
+                    .parse()
+                    .map_err(|e: url::ParseError| SisiError::Iroh(anyhow::anyhow!(e)))?;
+                builder = builder.address_lookup(PkarrPublisher::builder(url.clone()));
+                builder = builder.address_lookup(PkarrResolver::builder(url));
+            }
+
+            if let Some(dns_origin) = &config.dns_origin {
+                builder = builder.address_lookup(DnsAddressLookup::builder(dns_origin.clone()));
+            }
+
+            builder
+                .bind()
+                .await
+                .map_err(|e| SisiError::Iroh(anyhow::anyhow!(e)))
+        } else {
+            Endpoint::builder(presets::N0)
+                .bind()
+                .await
+                .map_err(|e| SisiError::Iroh(anyhow::anyhow!(e)))
+        }
     }
 
     pub fn get() -> Result<&'static NodeHandle> {

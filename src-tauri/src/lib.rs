@@ -1,7 +1,8 @@
 mod commands;
 
 use gateway::start_gateway;
-use node::SisiNode;
+use node::{NodeConfig, SisiNode};
+use std::env::var;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -15,7 +16,17 @@ pub fn run() {
             tracing::info!("data_dir = {:?}", data_dir);
 
             tauri::async_runtime::spawn(async move {
-                SisiNode::start(&data_dir)
+                let config = if let (Ok(relay), Ok(pkarr), Ok(dns)) = (
+                    var("SISI_RELAY_URL"),
+                    var("SISI_PKARR_URL"),
+                    var("SISI_DNS_ORIGIN"),
+                ) {
+                    NodeConfig::custom(&relay, &pkarr, &dns)
+                } else {
+                    NodeConfig::default()
+                };
+
+                SisiNode::start(&data_dir, config)
                     .await
                     .expect("node failed to start");
                 start_gateway(7777).await;

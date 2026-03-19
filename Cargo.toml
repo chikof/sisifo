@@ -1,18 +1,19 @@
 [workspace]
 resolver = "2"
 members = [
-	"crates/node",
-	"crates/gateway",
-	"crates/publisher",
-	"crates/resolver",
-	"crates/manifest",
-	"crates/types",
-	"crates/sisi-daemon",
-	"src-tauri",
+  "crates/node",
+  "crates/gateway",
+  "crates/publisher",
+  "crates/resolver",
+  "crates/manifest",
+  "crates/types",
+  "crates/sisi-daemon",
+  "src-tauri",
+  "sisi-infra",
 ]
 
 [workspace.dependencies]
-iroh = "0.97.0"
+iroh = { version = "0.97.0", features = ["address-lookup-pkarr-dht"] }
 iroh-blobs = "0.99.0"
 axum = { version = "0.8.8", features = ["tokio"] }
 tokio = { version = "1.50.0", features = ["full"] }
