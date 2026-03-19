@@ -68,6 +68,7 @@ impl MessageStore {
         let mut stmt = self.conn.prepare(
             "SELECT raw_json FROM messages
              WHERE topic = ?1
+			   AND parent_id IS NULL
              ORDER BY created_at DESC
              LIMIT ?2 OFFSET ?3",
         )?;

@@ -1,4 +1,4 @@
-use gossip::{GossipMessage, MessageKind, MessageStore, get_gossip};
+use gossip::{GossipMessage, MessageKind, MessageStore, PersonalBlockList, get_gossip};
 use node::signing_key;
 use publisher::{list_local_sites as publisher_list_local_sites, publish_dir};
 use resolver::resolve_to_gateway_url;
@@ -72,6 +72,10 @@ pub async fn daemon_running() -> bool {
 
 #[tauri::command]
 pub async fn unpin_site(hash: String) -> Result<(), String> {
+    publisher::remove_site(&hash)
+        .await
+        .map_err(|e| e.to_string())?;
+
     match DaemonClient::connect().await {
         Some(mut client) => client
             .send(DaemonCommand::Unpin { hash })
@@ -96,7 +100,11 @@ pub async fn pick_folder(app: tauri::AppHandle) -> Result<Option<String>, String
 
 /// Post a new top-level message to a topic
 #[tauri::command]
-pub async fn post_message(topic: String, content: String) -> Result<GossipMessage, String> {
+pub async fn post_message(
+    app: tauri::AppHandle,
+    topic: String,
+    content: String,
+) -> Result<GossipMessage, String> {
     let key = signing_key()
         .await
         .map_err(|e: anyhow::Error| e.to_string())?;
@@ -109,12 +117,16 @@ pub async fn post_message(topic: String, content: String) -> Result<GossipMessag
         .await
         .map_err(|e| e.to_string())?;
 
+    app.emit(&format!("gossip:{}", topic), &msg)
+        .map_err(|e| e.to_string())?;
+
     Ok(msg)
 }
 
 /// Reply to a message
 #[tauri::command]
 pub async fn reply_message(
+    app: tauri::AppHandle,
     topic: String,
     content: String,
     parent_id: String,
@@ -129,6 +141,9 @@ pub async fn reply_message(
         .map_err(|e| e.to_string())?
         .broadcast(&topic, &msg)
         .await
+        .map_err(|e| e.to_string())?;
+
+    app.emit(&format!("gossip:{}", topic), &msg)
         .map_err(|e| e.to_string())?;
 
     Ok(msg)
@@ -172,12 +187,15 @@ pub async fn subscribe_topic(topic: String, app: tauri::AppHandle) -> Result<(),
 
 /// Delete your own message (broadcasts a tombstone)
 #[tauri::command]
-pub async fn delete_message(topic: String, message_id: String) -> Result<(), String> {
+pub async fn delete_message(
+    app: tauri::AppHandle,
+    topic: String,
+    message_id: String,
+) -> Result<(), String> {
     let key = signing_key()
         .await
         .map_err(|e: anyhow::Error| e.to_string())?;
 
-    // Only the author can delete — verified by signature on the tombstone
     let tombstone = GossipMessage::new(&key, &topic, MessageKind::Delete, &message_id, None)
         .map_err(|e| e.to_string())?;
 
@@ -187,11 +205,50 @@ pub async fn delete_message(topic: String, message_id: String) -> Result<(), Str
         .await
         .map_err(|e| e.to_string())?;
 
-    // Remove from local store
     MessageStore::open()
         .map_err(|e| e.to_string())?
         .delete(&message_id)
         .map_err(|e| e.to_string())?;
 
+    app.emit(&format!("gossip:{}", topic), &tombstone)
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn block_user(pubkey: String) -> Result<(), String> {
+    let mut list = PersonalBlockList::load().await.map_err(|e| e.to_string())?;
+    list.block(&pubkey).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn unblock_user(pubkey: String) -> Result<(), String> {
+    let mut list = PersonalBlockList::load().await.map_err(|e| e.to_string())?;
+    list.unblock(&pubkey).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_blocked_users() -> Result<Vec<String>, String> {
+    let list = PersonalBlockList::load().await.map_err(|e| e.to_string())?;
+    Ok(list.blocked.into_iter().collect())
+}
+
+/// Forum owner: block a user from a topic (broadcasts signed modlist)
+#[tauri::command]
+pub async fn mod_block_user(topic: String, pubkey: String) -> Result<(), String> {
+    let key = signing_key()
+        .await
+        .map_err(|e: anyhow::Error| e.to_string())?;
+    // Load or create modlist for this topic
+    // In production: store modlist in gossip store, broadcast update
+    // For now: local modlist broadcast as a ModBlock message
+    let msg = GossipMessage::new(&key, &topic, MessageKind::ModBlock, &pubkey, None)
+        .map_err(|e| e.to_string())?;
+    get_gossip()
+        .map_err(|e| e.to_string())?
+        .broadcast(&topic, &msg)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(())
 }

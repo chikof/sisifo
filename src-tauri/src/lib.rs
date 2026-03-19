@@ -1,6 +1,7 @@
 mod commands;
 
 use gateway::start_gateway;
+use gossip::init_gossip;
 use node::{NodeConfig, SisiNode};
 use std::env::var;
 use tauri::Manager;
@@ -29,6 +30,7 @@ pub fn run() {
                 SisiNode::start(&data_dir, config)
                     .await
                     .expect("node failed to start");
+                init_gossip().await.expect("gossip failed to start");
                 start_gateway(7777).await;
             });
 
@@ -54,6 +56,10 @@ pub fn run() {
             commands::list_replies,
             commands::subscribe_topic,
             commands::delete_message,
+            commands::block_user,
+            commands::unblock_user,
+            commands::get_blocked_users,
+            commands::mod_block_user,
         ])
         .run(tauri::generate_context!())
         .expect("error running tauri application");

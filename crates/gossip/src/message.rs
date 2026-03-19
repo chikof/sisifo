@@ -1,8 +1,7 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
-use anyhow::anyhow;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum MessageKind {
@@ -10,6 +9,10 @@ pub enum MessageKind {
     Reply,
     Reaction,
     Delete,
+
+    ModBlock,
+    ModUnblock,
+    ModPin,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

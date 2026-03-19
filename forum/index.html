@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Forum — Sísifo</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<link
+		href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=JetBrains+Mono:wght@300;400;500&display=swap"
+		rel="stylesheet" />
+	<style>
+		*,
+		*::before,
+		*::after {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+		}
+
+		:root {
+			--paper: #f7f4ef;
+			--paper2: #f0ece4;
+			--paper3: #e8e3d9;
+			--ink: #1c1917;
+			--ink2: #57534e;
+			--ink3: #a8a29e;
+			--ink4: #d4cfc8;
+			--accent: #c2410c;
+			--accent-light: #fff1ec;
+			--green: #15803d;
+			--red: #b91c1c;
+			--red-light: #fef2f2;
+			--serif: 'Newsreader', Georgia, serif;
+			--mono: 'JetBrains Mono', monospace;
+			--radius: 4px;
+		}
+
+		html {
+			font-size: 15px;
+		}
+
+		body {
+			background: var(--paper);
+			color: var(--ink);
+			font-family: var(--serif);
+			line-height: 1.6;
+			-webkit-font-smoothing: antialiased;
+			min-height: 100vh;
+		}
+
+		body::before {
+			content: '';
+			position: fixed;
+			inset: 0;
+			background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XiDAAAAUVBMVEWFhYWDg4N3d3dtbW17e3t1dXWBgYGHh4t5eXlzc3OLi4ubm5uVlZWPj4+NjY19fX2JiYl/f39ra2uRkZGZmZlpaWmXl5dvb29xcXGTk5NnZ2c8TV1mAAAAG3RSTlNAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEAvEOwtAAAFVklEQVR4XpWWB67c2BUFb3g557T/hRo9/WUMZHlgr4Bg8Z4qQgQJlHI4A8SzFVrapvmTF9O7dmYRFZ60YiBhJRCgh1FYhiLAmdvX0CzTOpNE77ME0Zty/nWWzchDtiqrmQDeuv3powQ5ta2eN0FY0InkqDD73lT9c9lEzwUNqgFHs9VQce3TVClFCQrSTfOiYkVJQBmpbq2L6iZavPnAPcoU0dSw0SUTqz/GtrGuXfbyyBniKykOWQWGqwwMA7QiYAxi+IlPdqo+hYHnUt5ZPfnsHJyNiDtnpJyayNBkF6cWoYGAMY92ZBRSMQcGAgDzBsAFNIqmkEZNDpbQGexelYJBDDCEPgALAAEIBgGIbLxN9T88/YoAAAeABAgEAFQAI/+L0YAABJRU5ErkJggg==");
+			pointer-events: none;
+			opacity: 0.025;
+			z-index: 999;
+		}
+
+		.layout {
+			max-width: 860px;
+			margin: 0 auto;
+			padding: 0 20px;
+		}
+
+		header {
+			border-bottom: 2px solid var(--ink);
+			padding: 20px 0 14px;
+		}
+
+		.header-inner {
+			display: flex;
+			align-items: baseline;
+			justify-content: space-between;
+			gap: 20px;
+		}
+
+		.site-title {
+			font-size: 28px;
+			font-weight: 600;
+			letter-spacing: -0.03em;
+			color: var(--ink);
+			font-style: italic;
+		}
+
+		.header-meta {
+			display: flex;
+			align-items: center;
+			gap: 16px;
+		}
+
+		.my-id {
+			font-family: var(--mono);
+			font-size: 11px;
+			color: var(--ink3);
+			cursor: pointer;
+			padding: 3px 8px;
+			border: 1px solid var(--ink4);
+			border-radius: var(--radius);
+			transition: border-color 0.15s, color 0.15s;
+		}
+
+		.my-id:hover {
+			border-color: var(--ink2);
+			color: var(--ink2);
+		}
+
+		.topics-bar {
+			border-bottom: 1px solid var(--ink4);
+			display: flex;
+			align-items: center;
+			overflow-x: auto;
+			scrollbar-width: none;
+		}
+
+		.topics-bar::-webkit-scrollbar {
+			display: none;
+		}
+
+		.topic-tab {
+			font-family: var(--mono);
+			font-size: 12px;
+			color: var(--ink2);
+			padding: 10px 18px;
+			border: none;
+			border-bottom: 2px solid transparent;
+			background: none;
+			cursor: pointer;
+			white-space: nowrap;
+			transition: color 0.15s, border-color 0.15s;
+			letter-spacing: 0.02em;
+			margin-bottom: -1px;
+		}
+
+		.topic-tab:hover {
+			color: var(--ink);
+		}
+
+		.topic-tab.active {
+			color: var(--accent);
+			border-bottom-color: var(--accent);
+			font-weight: 500;
+		}
+
+		.add-topic-btn {
+			font-family: var(--mono);
+			font-size: 12px;
+			color: var(--ink3);
+			padding: 10px 14px;
+			border: none;
+			background: none;
+			cursor: pointer;
+			transition: color 0.15s;
+			margin-left: auto;
+		}
+
+		.add-topic-btn:hover {
+			color: var(--accent);
+		}
+
+		.main {
+			display: grid;
+			grid-template-columns: 1fr 300px;
+			gap: 0;
+			min-height: calc(100vh - 100px);
+		}
+
+		.feed {
+			border-right: 1px solid var(--ink4);
+			padding: 20px 28px 20px 0;
+		}
+
+		.sidebar {
+			padding: 20px 0 20px 24px;
+		}
+
+		.compose {
+			background: white;
+			border: 1px solid var(--ink4);
+			border-radius: var(--radius);
+			padding: 16px;
+			margin-bottom: 24px;
+		}
+
+		.compose textarea {
+			width: 100%;
+			min-height: 80px;
+			border: none;
+			background: none;
+			font-family: var(--serif);
+			font-size: 15px;
+			color: var(--ink);
+			resize: vertical;
+			outline: none;
+			line-height: 1.6;
+		}
+
+		.compose textarea::placeholder {
+			color: var(--ink3);
+		}
+
+		.compose-footer {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			margin-top: 10px;
+			padding-top: 10px;
+			border-top: 1px solid var(--ink4);
+		}
+
+		.compose-hint {
+			font-family: var(--mono);
+			font-size: 11px;
+			color: var(--ink3);
+		}
+
+		.post-list {
+			display: flex;
+			flex-direction: column;
+		}
+
+		.post-card {
+			padding: 16px 0;
+			border-bottom: 1px solid var(--ink4);
+			position: relative;
+			animation: fadeIn 0.25s ease;
+		}
+
+		.post-card:first-child {
+			border-top: 1px solid var(--ink4);
+		}
+
+		@keyframes fadeIn {
+			from {
+				opacity: 0;
+				transform: translateY(4px);
+			}
+
+			to {
+				opacity: 1;
+				transform: none;
+			}
+		}
+
+		.post-card.pinned {
+			background: linear-gradient(to right, rgba(194, 65, 12, 0.04), transparent);
+			padding-left: 10px;
+			margin-left: -10px;
+		}
+
+		.post-header {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			margin-bottom: 8px;
+		}
+
+		.author-avatar {
+			width: 28px;
+			height: 28px;
+			border-radius: 50%;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-family: var(--mono);
+			font-size: 10px;
+			font-weight: 500;
+			flex-shrink: 0;
+			color: white;
+		}
+
+		.author-info {
+			display: flex;
+			flex-direction: column;
+			gap: 1px;
+			flex: 1;
+			min-width: 0;
+		}
+
+		.author-name {
+			font-family: var(--mono);
+			font-size: 12px;
+			font-weight: 500;
+			color: var(--ink2);
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.author-name.is-me {
+			color: var(--accent);
+		}
+
+		.post-time {
+			font-family: var(--mono);
+			font-size: 11px;
+			color: var(--ink3);
+		}
+
+		.post-pin-badge {
+			font-family: var(--mono);
+			font-size: 10px;
+			color: var(--accent);
+			background: var(--accent-light);
+			padding: 1px 6px;
+			border-radius: 2px;
+		}
+
+		.post-body {
+			font-size: 15px;
+			color: var(--ink);
+			line-height: 1.65;
+			white-space: pre-wrap;
+			word-break: break-word;
+			margin-bottom: 10px;
+		}
+
+		.post-body.deleted {
+			color: var(--ink3);
+			font-style: italic;
+		}
+
+		.post-actions {
+			display: flex;
+			align-items: center;
+			gap: 4px;
+		}
+
+		.action-btn {
+			display: flex;
+			align-items: center;
+			gap: 5px;
+			padding: 4px 8px;
+			border: 1px solid transparent;
+			border-radius: var(--radius);
+			background: none;
+			font-family: var(--mono);
+			font-size: 11px;
+			color: var(--ink3);
+			cursor: pointer;
+			transition: all 0.12s;
+		}
+
+		.action-btn:hover {
+			border-color: var(--ink4);
+			color: var(--ink2);
+			background: var(--paper2);
+		}
+
+		.action-btn.danger:hover {
+			border-color: #fca5a5;
+			color: var(--red);
+			background: var(--red-light);
+		}
+
+		.replies {
+			margin-top: 12px;
+			padding-left: 20px;
+			border-left: 2px solid var(--ink4);
+			display: flex;
+			flex-direction: column;
+		}
+
+		.reply-card {
+			padding: 10px 0;
+			border-bottom: 1px solid var(--paper3);
+		}
+
+		.reply-card:last-child {
+			border-bottom: none;
+		}
+
+		.reply-body {
+			font-size: 14px;
+			color: var(--ink);
+			line-height: 1.6;
+			margin: 6px 0 8px;
+			white-space: pre-wrap;
+			word-break: break-word;
+		}
+
+		.reply-compose {
+			margin-top: 10px;
+			padding-top: 10px;
+			border-top: 1px dashed var(--ink4);
+			display: flex;
+			gap: 8px;
+		}
+
+		.reply-input {
+			flex: 1;
+			border: 1px solid var(--ink4);
+			border-radius: var(--radius);
+			padding: 8px 12px;
+			font-family: var(--serif);
+			font-size: 14px;
+			color: var(--ink);
+			background: white;
+			outline: none;
+			transition: border-color 0.15s;
+		}
+
+		.reply-input:focus {
+			border-color: var(--accent);
+		}
+
+		.reply-input::placeholder {
+			color: var(--ink3);
+		}
+
+		.btn {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			padding: 7px 16px;
+			border-radius: var(--radius);
+			font-family: var(--mono);
+			font-size: 12px;
+			font-weight: 500;
+			cursor: pointer;
+			border: 1px solid transparent;
+			transition: all 0.15s;
+			letter-spacing: 0.02em;
+		}
+
+		.btn-primary {
+			background: var(--ink);
+			color: var(--paper);
+			border-color: var(--ink);
+		}
+
+		.btn-primary:hover {
+			background: var(--accent);
+			border-color: var(--accent);
+		}
+
+		.btn-primary:disabled {
+			opacity: 0.4;
+			cursor: default;
+		}
+
+		.btn-sm {
+			padding: 5px 10px;
+			font-size: 11px;
+		}
+
+		.btn-ghost {
+			background: none;
+			color: var(--ink2);
+			border-color: var(--ink4);
+		}
+
+		.btn-ghost:hover {
+			border-color: var(--ink2);
+			color: var(--ink);
+		}
+
+		.sidebar-section {
+			margin-bottom: 28px;
+		}
+
+		.sidebar-title {
+			font-family: var(--mono);
+			font-size: 10px;
+			color: var(--ink3);
+			text-transform: uppercase;
+			letter-spacing: 0.1em;
+			margin-bottom: 12px;
+			padding-bottom: 6px;
+			border-bottom: 1px solid var(--ink4);
+		}
+
+		.stat-row {
+			display: flex;
+			justify-content: space-between;
+			align-items: baseline;
+			padding: 5px 0;
+			border-bottom: 1px solid var(--paper3);
+		}
+
+		.stat-label {
+			font-size: 13px;
+			color: var(--ink2);
+		}
+
+		.stat-value {
+			font-family: var(--mono);
+			font-size: 12px;
+			color: var(--ink);
+			font-weight: 500;
+		}
+
+		.online-dot {
+			display: inline-block;
+			width: 7px;
+			height: 7px;
+			background: var(--green);
+			border-radius: 50%;
+			animation: pulse 2s ease-in-out infinite;
+			margin-right: 5px;
+		}
+
+		@keyframes pulse {
+
+			0%,
+			100% {
+				opacity: 1
+			}
+
+			50% {
+				opacity: .4
+			}
+		}
+
+		.blocked-list {
+			display: flex;
+			flex-direction: column;
+			gap: 6px;
+		}
+
+		.blocked-item {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 8px;
+			padding: 5px 8px;
+			background: var(--red-light);
+			border-radius: var(--radius);
+		}
+
+		.blocked-pubkey {
+			font-family: var(--mono);
+			font-size: 10px;
+			color: var(--red);
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.unblock-btn {
+			font-family: var(--mono);
+			font-size: 10px;
+			color: var(--red);
+			background: none;
+			border: none;
+			cursor: pointer;
+			flex-shrink: 0;
+			opacity: 0.7;
+			transition: opacity 0.15s;
+		}
+
+		.unblock-btn:hover {
+			opacity: 1;
+		}
+
+		.rules-list {
+			display: flex;
+			flex-direction: column;
+			gap: 6px;
+		}
+
+		.rule-item {
+			display: flex;
+			gap: 8px;
+			font-size: 13px;
+			color: var(--ink2);
+			line-height: 1.4;
+		}
+
+		.rule-num {
+			font-family: var(--mono);
+			font-size: 11px;
+			color: var(--ink3);
+			flex-shrink: 0;
+		}
+
+		.modal-overlay {
+			position: fixed;
+			inset: 0;
+			background: rgba(28, 25, 23, 0.5);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			z-index: 500;
+			padding: 20px;
+			backdrop-filter: blur(2px);
+		}
+
+		.modal-overlay.hidden {
+			display: none;
+		}
+
+		.modal {
+			background: var(--paper);
+			border: 1px solid var(--ink4);
+			border-radius: var(--radius);
+			padding: 24px;
+			max-width: 420px;
+			width: 100%;
+			box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12);
+		}
+
+		.modal h3 {
+			font-size: 17px;
+			font-weight: 600;
+			margin-bottom: 6px;
+			letter-spacing: -0.02em;
+		}
+
+		.modal p {
+			font-size: 13px;
+			color: var(--ink2);
+			margin-bottom: 16px;
+			line-height: 1.5;
+		}
+
+		.modal-actions {
+			display: flex;
+			gap: 8px;
+			justify-content: flex-end;
+			margin-top: 16px;
+		}
+
+		.empty-state {
+			padding: 48px 20px;
+			text-align: center;
+			color: var(--ink3);
+		}
+
+		.empty-state p {
+			font-size: 14px;
+			margin-top: 8px;
+		}
+
+		.add-topic-form {
+			display: flex;
+			gap: 8px;
+			padding: 8px 0;
+		}
+
+		.topic-input {
+			flex: 1;
+			border: 1px solid var(--ink4);
+			border-radius: var(--radius);
+			padding: 6px 10px;
+			font-family: var(--mono);
+			font-size: 12px;
+			background: white;
+			outline: none;
+			color: var(--ink);
+		}
+
+		.topic-input:focus {
+			border-color: var(--accent);
+		}
+
+		.live-badge {
+			display: inline-flex;
+			align-items: center;
+			gap: 5px;
+			font-family: var(--mono);
+			font-size: 10px;
+			color: var(--green);
+			letter-spacing: 0.05em;
+		}
+
+		.loading {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			padding: 20px 0;
+			color: var(--ink3);
+			font-size: 13px;
+			font-family: var(--mono);
+		}
+
+		.spinner {
+			width: 14px;
+			height: 14px;
+			border: 2px solid var(--ink4);
+			border-top-color: var(--accent);
+			border-radius: 50%;
+			animation: spin 0.7s linear infinite;
+		}
+
+		@keyframes spin {
+			to {
+				transform: rotate(360deg);
+			}
+		}
+	</style>
+</head>
+
+<body>
+
+	<div class="layout">
+		<header>
+			<div class="header-inner">
+				<div><span class="site-title">Forum</span></div>
+				<div class="header-meta">
+					<span class="live-badge"><span class="online-dot"></span>P2P</span>
+					<span class="my-id" id="my-id-display" title="Your identity (click to copy)">loading…</span>
+				</div>
+			</div>
+			<div class="topics-bar" id="topics-bar">
+				<button class="add-topic-btn" id="add-topic-btn">+ topic</button>
+			</div>
+			<div class="add-topic-form" id="add-topic-form" style="display:none">
+				<input class="topic-input" id="new-topic-input" placeholder="topic-name (lowercase, no spaces)"
+					maxlength="32" />
+				<button class="btn btn-primary btn-sm" id="add-topic-submit">Add</button>
+				<button class="btn btn-ghost btn-sm" id="add-topic-cancel">Cancel</button>
+			</div>
+		</header>
+
+		<div class="main">
+			<div class="feed">
+				<div class="compose">
+					<textarea id="compose-input" placeholder="What's on your mind? (Shift+Enter to post)"></textarea>
+					<div class="compose-footer">
+						<span class="compose-hint" id="topic-hint">posting to <strong>general</strong></span>
+						<button class="btn btn-primary btn-sm" id="post-btn" disabled>Post</button>
+					</div>
+				</div>
+				<div class="post-list" id="post-list">
+					<div class="loading" id="loading-indicator"><span class="spinner"></span>Connecting to peers…</div>
+				</div>
+			</div>
+
+			<aside class="sidebar">
+				<div class="sidebar-section">
+					<div class="sidebar-title">Stats</div>
+					<div class="stat-row"><span class="stat-label">Posts in topic</span><span class="stat-value"
+							id="stat-posts">—</span></div>
+					<div class="stat-row"><span class="stat-label">Topic</span><span class="stat-value"
+							id="stat-topic">general</span></div>
+				</div>
+				<div class="sidebar-section">
+					<div class="sidebar-title">Rules</div>
+					<div class="rules-list">
+						<div class="rule-item"><span class="rule-num">1.</span> Be respectful to others</div>
+						<div class="rule-item"><span class="rule-num">2.</span> No spam or unsolicited ads</div>
+						<div class="rule-item"><span class="rule-num">3.</span> Stay on topic</div>
+						<div class="rule-item"><span class="rule-num">4.</span> No harassment or doxxing</div>
+					</div>
+				</div>
+				<div class="sidebar-section">
+					<div class="sidebar-title">Blocked users <span id="blocked-count"></span></div>
+					<div class="blocked-list" id="blocked-list">
+						<span style="font-size:12px;color:var(--ink3)">No blocked users</span>
+					</div>
+				</div>
+			</aside>
+		</div>
+	</div>
+
+	<div class="modal-overlay hidden" id="block-modal">
+		<div class="modal">
+			<h3>Block this user?</h3>
+			<p>You won't see any messages from this user. This only affects your local view.</p>
+			<code style="font-family:var(--mono);font-size:11px;color:var(--ink2);word-break:break-all"
+				id="block-pubkey-display"></code>
+			<div class="modal-actions">
+				<button class="btn btn-ghost" id="block-cancel">Cancel</button>
+				<button class="btn btn-primary" id="block-confirm"
+					style="background:var(--red);border-color:var(--red)">Block</button>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		// ── BRIDGE ─────────────────────────────────────────────────────────────────
+		// The forum runs inside the Sisifo gateway WebView (localhost:7777).
+		// It cannot access Tauri's JS API directly — it communicates with the outer
+		// Svelte shell via postMessage. The shell (Browser.svelte) must implement
+		// the listener that forwards invoke() calls and gossip events back.
+		//
+		// When window.parent === window (standalone browser), the mock bridge is used.
+
+		const pendingCalls = new Map();
+		const eventListeners = new Map();
+		const insideSisifo = window.parent !== window;
+
+		function invoke(cmd, args = {}) {
+			if (!insideSisifo) return mockInvoke(cmd, args);
+			return new Promise((resolve, reject) => {
+				const id = Math.random().toString(36).slice(2);
+				pendingCalls.set(id, {resolve, reject});
+				window.parent.postMessage({id, cmd, args}, '*');
+				setTimeout(() => {
+					if (pendingCalls.has(id)) {
+						pendingCalls.delete(id);
+						reject(new Error(`invoke(${cmd}) timed out after 10s`));
+					}
+				}, 10000);
+			});
+		}
+
+		function listen(eventName, callback) {
+			if (!insideSisifo) return () => { };
+			if (!eventListeners.has(eventName)) eventListeners.set(eventName, new Set());
+			eventListeners.get(eventName).add(callback);
+			return () => eventListeners.get(eventName)?.delete(callback);
+		}
+
+		// Handle responses + forwarded Tauri events from the outer Svelte shell
+		window.addEventListener('message', (e) => {
+			const d = e.data;
+			if (!d) return;
+			// invoke() response
+			if (d.id && pendingCalls.has(d.id)) {
+				const {resolve, reject} = pendingCalls.get(d.id);
+				pendingCalls.delete(d.id);
+				d.error ? reject(new Error(d.error)) : resolve(d.result);
+				return;
+			}
+			// Forwarded Tauri event
+			if (d.tauriEvent) {
+				eventListeners.get(d.tauriEvent)?.forEach(cb => cb({payload: d.payload}));
+			}
+		});
+
+		// ── MOCK BRIDGE ─────────────────────────────────────────────────────────────
+		const MOCK_ME = 'aabbccdd11223344aabbccdd11223344aabbccdd11223344aabbccdd11223344';
+		const mockMessages = [
+			{id: '01HQ001', author: MOCK_ME, topic: 'general', kind: 'Post', content: 'Welcome to the forum! Running on Sísifo — a decentralized P2P browser.', parent_id: null, created_at: Date.now() / 1000 - 300, signature: []},
+			{id: '01HQ002', author: 'deadbeef11223344aabbccdd11223344aabbccdd11223344aabbccdd11223344', topic: 'general', kind: 'Post', content: 'A forum with no central server — how does it stay up when everyone goes offline?', parent_id: null, created_at: Date.now() / 1000 - 200, signature: []},
+			{id: '01HQ003', author: MOCK_ME, topic: 'general', kind: 'Reply', content: 'Messages are cached locally in SQLite. Once loaded, you have a copy.', parent_id: '01HQ002', created_at: Date.now() / 1000 - 150, signature: []},
+		];
+		const mockBlocked = [];
+
+		function fireEvent(eventName, payload) {
+			setTimeout(() => {
+				const serialized = JSON.stringify(payload);
+				eventListeners.get(eventName)?.forEach(cb => cb({payload: serialized}));
+			}, 60);
+		}
+
+
+		async function mockInvoke(cmd, args) {
+			await new Promise(r => setTimeout(r, 80));
+			switch (cmd) {
+				case 'node_identity': return MOCK_ME;
+				case 'get_blocked_users': return [...mockBlocked];
+				case 'subscribe_topic': return null;
+				case 'list_messages': return mockMessages.filter(m => m.topic === args.topic && !(m.parentId || m.parent_id));
+				case 'list_replies': return mockMessages.filter(m => (m.parentId ?? args.parent_id)) === args.parentId;
+				case 'post_message': {
+					const msg = {id: 'NEW' + Date.now(), author: MOCK_ME, topic: args.topic, kind: 'Post', content: args.content, parent_id: null, created_at: Date.now() / 1000, signature: []};
+					mockMessages.unshift(msg);
+					fireEvent(`gossip:${args.topic}`, msg);
+					return msg;
+				}
+				case 'reply_message': {
+					const msg = {id: 'REP' + Date.now(), author: MOCK_ME, topic: args.topic, kind: 'Reply', content: args.content, parent_id: args.parent_id, created_at: Date.now() / 1000, signature: []};
+					mockMessages.push(msg);
+					fireEvent(`gossip:${args.topic}`, msg);
+					return msg;
+				}
+				case 'delete_message': {
+					const idx = mockMessages.findIndex(m => m.id === args.message_id);
+					if (idx > -1) {
+						mockMessages[idx].content = '[deleted]';
+						fireEvent(`gossip:${args.topic}`, {...mockMessages[idx], kind: 'Delete', content: args.message_id});
+					}
+					return null;
+				}
+				case 'block_user': mockBlocked.push(args.pubkey); return null;
+				case 'unblock_user': {const i = mockBlocked.indexOf(args.pubkey); if (i > -1) mockBlocked.splice(i, 1); return null;}
+				default: return null;
+			}
+		}
+
+		// ── STATE ────────────────────────────────────────────────────────────────────
+		let myPubkey = '';
+		let currentTopic = 'general';
+		let topics = ['general', 'meta', 'dev'];
+		let posts = [];
+		let blockedUsers = [];
+		let expandedReplies = new Set();
+		let pendingBlockPubkey = '';
+		let unlistenFns = [];
+
+		// ── INIT ─────────────────────────────────────────────────────────────────────
+		async function init() {
+			try {
+				myPubkey = await invoke('node_identity');
+				document.getElementById('my-id-display').textContent = shortPubkey(myPubkey);
+				document.getElementById('my-id-display').title = myPubkey;
+			} catch {document.getElementById('my-id-display').textContent = 'not connected';}
+			blockedUsers = await invoke('get_blocked_users').catch(() => []);
+			renderBlockedList();
+			renderTopics();
+			await switchTopic(currentTopic);
+		}
+
+		// ── TOPICS ───────────────────────────────────────────────────────────────────
+		function renderTopics() {
+			const bar = document.getElementById('topics-bar');
+			const addBtn = document.getElementById('add-topic-btn');
+			bar.querySelectorAll('.topic-tab').forEach(t => t.remove());
+			topics.forEach(t => {
+				const btn = document.createElement('button');
+				btn.className = 'topic-tab' + (t === currentTopic ? ' active' : '');
+				btn.textContent = '#' + t;
+				btn.onclick = () => switchTopic(t);
+				bar.insertBefore(btn, addBtn);
+			});
+			document.getElementById('stat-topic').textContent = '#' + currentTopic;
+			document.getElementById('topic-hint').innerHTML = `posting to <strong>#${currentTopic}</strong>`;
+		}
+
+		async function switchTopic(topic) {
+			currentTopic = topic;
+			renderTopics();
+			unlistenFns.forEach(fn => fn());
+			unlistenFns = [];
+			expandedReplies.clear();
+
+			const list = document.getElementById('post-list');
+			list.innerHTML = '<div class="loading"><span class="spinner"></span> Loading…</div>';
+
+			// Tell the outer shell to subscribe and forward gossip events
+			await invoke('subscribe_topic', {topic}).catch(() => { });
+
+			// Listen for live messages forwarded from the shell
+			const unlisten = listen(`gossip:${topic}`, (event) => {
+				const msg = typeof event.payload === 'string'
+					? JSON.parse(event.payload)
+					: event.payload;
+				if (!msg || blockedUsers.includes(msg.author)) return;
+
+				if (msg.kind === 'Delete') {
+					// msg.content is the id of the message to delete
+					const target = posts.find(p => p.id === msg.content);
+					if (target && target.author === msg.author) {
+						target.content = '[deleted]';
+						renderPosts();
+					}
+					return; // stop here
+				}
+
+				if (msg.kind === 'Post') {
+					if (!posts.find(p => p.id === msg.id)) {
+						posts.unshift(msg);
+						renderPosts();
+					}
+				} else if (msg.kind === 'Reply') {
+					const parentId = msg.parent_id;
+					if (expandedReplies.has(parentId)) {
+						const container = document.getElementById(`replies-${parentId}`);
+						if (container && !container.querySelector(`[data-id="${msg.id}"]`)) {
+							container.insertBefore(createReplyEl(msg), container.querySelector('.reply-compose'));
+						}
+					}
+				}
+			});
+
+			unlistenFns.push(unlisten);
+
+			try {
+				posts = await invoke('list_messages', {topic, limit: 50, offset: 0});
+				posts = posts.filter(p => !blockedUsers.includes(p.author));
+			} catch {posts = [];}
+
+			renderPosts();
+			document.getElementById('stat-posts').textContent = posts.length;
+		}
+
+		// ── RENDER POSTS ─────────────────────────────────────────────────────────────
+		function renderPosts() {
+			const list = document.getElementById('post-list');
+			list.innerHTML = '';
+			if (posts.length === 0) {
+				list.innerHTML = `<div class="empty-state"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto;opacity:.3"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><p>No posts yet — be the first!</p></div>`;
+				return;
+			}
+			posts.forEach(post => list.appendChild(createPostEl(post)));
+			document.getElementById('stat-posts').textContent = posts.length;
+		}
+
+		function createPostEl(post) {
+			const isMe = post.author === myPubkey;
+			const isDeleted = post.kind == 'Delete';
+			const div = document.createElement('div');
+			div.className = 'post-card' + (post.pinned ? ' pinned' : '');
+			div.dataset.id = post.id;
+			div.innerHTML = `
+    <div class="post-header">
+      <div class="author-avatar" style="background:${authorColor(post.author)}">${post.author.slice(0, 2).toUpperCase()}</div>
+      <div class="author-info">
+        <span class="author-name ${isMe ? 'is-me' : ''}">${isMe ? 'you' : shortPubkey(post.author)}</span>
+        <span class="post-time">${relativeTime(post.created_at)}</span>
+      </div>
+      ${post.pinned ? '<span class="post-pin-badge">pinned</span>' : ''}
+    </div>
+    <div class="post-body ${isDeleted ? 'deleted' : ''}">${isDeleted ? '[deleted]' : escapeHtml(post.content)}</div>
+    <div class="post-actions">
+      <button class="action-btn reply-toggle" data-id="${post.id}">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Reply
+      </button>
+      ${!isMe && !isDeleted ? `<button class="action-btn danger block-btn" data-pubkey="${post.author}">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>Block</button>` : ''}
+      ${isMe && !isDeleted ? `<button class="action-btn danger delete-btn" data-id="${post.id}">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Delete</button>` : ''}
+    </div>
+    <div class="replies" id="replies-${post.id}" style="display:none"></div>`;
+			div.querySelector('.reply-toggle').addEventListener('click', () => toggleReplies(post.id));
+			div.querySelector('.block-btn')?.addEventListener('click', () => showBlockModal(div.querySelector('.block-btn').dataset.pubkey));
+			div.querySelector('.delete-btn')?.addEventListener('click', () => deletePost(post.id));
+			return div;
+		}
+
+		// ── REPLIES ──────────────────────────────────────────────────────────────────
+		async function toggleReplies(postId) {
+			const container = document.getElementById(`replies-${postId}`);
+			const btn = document.querySelector(`.reply-toggle[data-id="${postId}"]`);
+			if (expandedReplies.has(postId)) {
+				expandedReplies.delete(postId);
+				container.style.display = 'none';
+				btn.querySelector('svg').style.transform = '';
+				return;
+			}
+			expandedReplies.add(postId);
+			container.style.display = 'flex';
+			container.style.flexDirection = 'column';
+			btn.querySelector('svg').style.transform = 'rotate(180deg)';
+			container.innerHTML = '<div class="loading" style="padding:8px 0"><span class="spinner"></span></div>';
+
+			const replies = await invoke('list_replies', {parentId: postId}).catch(() => []);
+			container.innerHTML = '';
+			replies.filter(r => !blockedUsers.includes(r.author)).forEach(r => container.appendChild(createReplyEl(r)));
+
+			const compose = document.createElement('div');
+			compose.className = 'reply-compose';
+			compose.innerHTML = `<input class="reply-input" placeholder="Write a reply…" maxlength="1000" /><button class="btn btn-primary btn-sm reply-submit">Reply</button>`;
+			const input = compose.querySelector('.reply-input');
+			compose.querySelector('.reply-submit').addEventListener('click', async () => {
+				const content = input.value.trim();
+				if (!content) return;
+				input.disabled = true;
+				try {
+					// Reply shows via gossip event (fired by mock or by Rust app.emit)
+					await invoke('reply_message', {topic: currentTopic, content, parentId: postId});
+					input.value = '';
+				} catch (e) {alert('Failed: ' + e);}
+				finally {input.disabled = false; input.focus();}
+			});
+			input.addEventListener('keydown', e => {if (e.key === 'Enter' && !e.shiftKey) {e.preventDefault(); compose.querySelector('.reply-submit').click();} });
+			container.appendChild(compose);
+		}
+
+		function createReplyEl(reply) {
+			const isMe = reply.author === myPubkey;
+			const div = document.createElement('div');
+			div.className = 'reply-card';
+			div.dataset.id = reply.id;
+			div.innerHTML = `
+    <div class="post-header">
+      <div class="author-avatar" style="background:${authorColor(reply.author)};width:22px;height:22px;font-size:9px">${reply.author.slice(0, 2).toUpperCase()}</div>
+      <div class="author-info">
+        <span class="author-name ${isMe ? 'is-me' : ''}">${isMe ? 'you' : shortPubkey(reply.author)}</span>
+        <span class="post-time">${relativeTime(reply.created_at)}</span>
+      </div>
+      ${!isMe ? `<button class="action-btn danger block-btn" data-pubkey="${reply.author}" style="margin-left:auto;padding:2px 6px;font-size:10px">Block</button>` : ''}
+    </div>
+    <div class="reply-body">${escapeHtml(reply.content)}</div>`;
+			div.querySelector('.block-btn')?.addEventListener('click', () => showBlockModal(reply.author));
+			return div;
+		}
+
+		// ── POSTING ──────────────────────────────────────────────────────────────────
+		const composeInput = document.getElementById('compose-input');
+		const postBtn = document.getElementById('post-btn');
+		composeInput.addEventListener('input', () => {postBtn.disabled = !composeInput.value.trim();});
+		composeInput.addEventListener('keydown', e => {if (e.key === 'Enter' && e.shiftKey) {e.preventDefault(); postBtn.click();} });
+		postBtn.addEventListener('click', async () => {
+			const content = composeInput.value.trim();
+			if (!content) return;
+			postBtn.disabled = true;
+			postBtn.textContent = '…';
+			try {
+				// Rust side: post_message broadcasts + emits gossip event back → listener above handles UI update
+				await invoke('post_message', {topic: currentTopic, content});
+				composeInput.value = '';
+				postBtn.textContent = 'Post';
+			} catch (e) {
+				alert('Failed to post: ' + e);
+				postBtn.disabled = false;
+				postBtn.textContent = 'Post';
+			}
+		});
+
+		// ── DELETE ───────────────────────────────────────────────────────────────────
+		async function deletePost(id) {
+			if (!confirm('Delete this post? A tombstone will be broadcast to peers.')) return;
+			await invoke('delete_message', {topic: currentTopic, messageId: id})
+				.catch(e => toast('Delete failed: ' + e));
+			const post = posts.find(p => p.id === id);
+			if (post) {post.content = '[deleted]'; renderPosts();}
+		}
+
+		// ── MODERATION ───────────────────────────────────────────────────────────────
+		function showBlockModal(pubkey) {
+			pendingBlockPubkey = pubkey;
+			document.getElementById('block-pubkey-display').textContent = pubkey;
+			document.getElementById('block-modal').classList.remove('hidden');
+		}
+		document.getElementById('block-cancel').addEventListener('click', () => document.getElementById('block-modal').classList.add('hidden'));
+		document.getElementById('block-confirm').addEventListener('click', async () => {
+			await invoke('block_user', {pubkey: pendingBlockPubkey}).catch(() => { });
+			blockedUsers.push(pendingBlockPubkey);
+			posts = posts.filter(p => p.author !== pendingBlockPubkey);
+			renderPosts();
+			renderBlockedList();
+			document.getElementById('block-modal').classList.add('hidden');
+		});
+		document.getElementById('block-modal').addEventListener('click', e => {if (e.target === e.currentTarget) document.getElementById('block-modal').classList.add('hidden');});
+
+		function renderBlockedList() {
+			const list = document.getElementById('blocked-list');
+			const count = document.getElementById('blocked-count');
+			count.textContent = blockedUsers.length ? `(${blockedUsers.length})` : '';
+			if (!blockedUsers.length) {list.innerHTML = '<span style="font-size:12px;color:var(--ink3)">No blocked users</span>'; return;}
+			list.innerHTML = blockedUsers.map(pk => `<div class="blocked-item"><span class="blocked-pubkey">${shortPubkey(pk)}</span><button class="unblock-btn" data-pubkey="${pk}">unblock</button></div>`).join('');
+			list.querySelectorAll('.unblock-btn').forEach(btn => {
+				btn.addEventListener('click', async () => {
+					const pk = btn.dataset.pubkey;
+					await invoke('unblock_user', {pubkey: pk}).catch(() => { });
+					blockedUsers = blockedUsers.filter(b => b !== pk);
+					renderBlockedList();
+					await switchTopic(currentTopic);
+				});
+			});
+		}
+
+		// ── ADD TOPIC ────────────────────────────────────────────────────────────────
+		document.getElementById('add-topic-btn').addEventListener('click', () => {document.getElementById('add-topic-form').style.display = 'flex'; document.getElementById('new-topic-input').focus();});
+		document.getElementById('add-topic-cancel').addEventListener('click', () => {document.getElementById('add-topic-form').style.display = 'none'; document.getElementById('new-topic-input').value = '';});
+		document.getElementById('add-topic-submit').addEventListener('click', () => {
+			const name = document.getElementById('new-topic-input').value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+			if (!name || topics.includes(name)) return;
+			topics.push(name);
+			document.getElementById('add-topic-form').style.display = 'none';
+			document.getElementById('new-topic-input').value = '';
+			switchTopic(name);
+		});
+		document.getElementById('new-topic-input').addEventListener('keydown', e => {
+			if (e.key === 'Enter') document.getElementById('add-topic-submit').click();
+			if (e.key === 'Escape') document.getElementById('add-topic-cancel').click();
+		});
+
+		// ── IDENTITY ─────────────────────────────────────────────────────────────────
+		document.getElementById('my-id-display').addEventListener('click', async () => {
+			await navigator.clipboard.writeText(myPubkey).catch(() => { });
+			const el = document.getElementById('my-id-display');
+			el.textContent = 'copied!';
+			setTimeout(() => {el.textContent = shortPubkey(myPubkey);}, 1500);
+		});
+
+		// ── HELPERS ──────────────────────────────────────────────────────────────────
+		function shortPubkey(pk) {return pk.slice(0, 6) + '…' + pk.slice(-4);}
+		function authorColor(pk) {
+			const colors = ['#c2410c', '#0369a1', '#15803d', '#6d28d9', '#b45309', '#be185d', '#0e7490', '#4338ca'];
+			let h = 0; for (let i = 0; i < pk.length; i++) h = ((h << 5) - h) + pk.charCodeAt(i);
+			return colors[Math.abs(h) % colors.length];
+		}
+		function relativeTime(ts) {
+			const d = Math.floor(Date.now() / 1000 - ts);
+			if (d < 60) return 'just now';
+			if (d < 3600) return Math.floor(d / 60) + 'm ago';
+			if (d < 86400) return Math.floor(d / 3600) + 'h ago';
+			return Math.floor(d / 86400) + 'd ago';
+		}
+		function escapeHtml(s) {return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');}
+
+		init();
+	</script>
+</body>
+
+</html>

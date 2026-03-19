@@ -1,5 +1,5 @@
-use crate::{message::GossipMessage, store::MessageStore, topic::topic_id};
-use anyhow::Result;
+use crate::{MessageKind, message::GossipMessage, store::MessageStore, topic::topic_id};
+use anyhow::{Result, anyhow};
 use iroh_gossip::Gossip;
 use node::SisiNode;
 use std::{
@@ -8,7 +8,6 @@ use std::{
 };
 use tokio::sync::{OnceCell, broadcast};
 use tokio_stream::StreamExt;
-use anyhow::anyhow;
 
 static GOSSIP: OnceCell<Arc<GossipHandle>> = OnceCell::const_new();
 
