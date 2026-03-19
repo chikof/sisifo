@@ -11,7 +11,7 @@ services:
       - RUST_LOG=info
 
   sisi-relay:
-    image: ghcr.io/n0-computer/iroh-relay:latest
+    image: n0computer/iroh-relay:latest
     container_name: sisi-relay
     restart: unless-stopped
     ports:
@@ -29,7 +29,7 @@ services:
     command: --config /config/relay.toml
 
   sisi-dns:
-    image: ghcr.io/n0-computer/iroh-dns-server:latest
+    image: n0computer/iroh-dns-server:latest
     container_name: sisi-dns
     restart: unless-stopped
     ports:
