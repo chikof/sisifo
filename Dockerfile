@@ -1,10 +1,11 @@
-FROM rust:1.83-slim AS builder
+FROM rust:1.93-slim AS builder
 
 WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
 COPY sisi-infra ./sisi-infra
+COPY src-tauri ./src-tauri
 
 RUN cargo build --release -p sisi-infra
 
@@ -21,6 +22,5 @@ EXPOSE 6640
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:6640/health || exit 1
-
 
 CMD ["./sisi-infra"]
