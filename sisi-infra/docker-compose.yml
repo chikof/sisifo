@@ -18,29 +18,25 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "443:443/udp"
-      - "3478:3478/udp"
+      - "7844:7844/udp"
     volumes:
       - ./relay.toml:/config/relay.toml:ro
       - relay-certs:/certs
     environment:
-      - RELAY_HOSTNAME=${RELAY_HOSTNAME}
-      - ACME_CONTACT=${ACME_CONTACT}
       - RUST_LOG=iroh_relay=info
-    command: --config /config/relay.toml
+    command: --config-path /config/relay.toml
 
   sisi-dns:
     image: docker.io/n0computer/iroh-dns-server:latest
     container_name: sisi-dns
     restart: unless-stopped
     ports:
-      - "5353:5353/udp"
-      - "8080:8080"
+      - "53:53/udp"
+      - "443:443"
     volumes:
       - ./dns.toml:/config/dns.toml:ro
       - dns-data:/data
     environment:
-      - DNS_ORIGIN=${DNS_ORIGIN}
       - RUST_LOG=info
     command: --config /config/dns.toml
 

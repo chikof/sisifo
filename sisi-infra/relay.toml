@@ -1,15 +1,15 @@
-[relay]
-hostname = "${RELAY_HOSTNAME}"
-http_bind_addr = "0.0.0.0:80"
-https_bind_addr = "0.0.0.0:443"
+enable_relay = true
+http_bind_addr = "[::]:80"
+enable_quic_addr_discovery = true
+enable_metrics = false            # set true if you want Prometheus metrics on :9090
+
+access = "everyone"
 
 [tls]
+https_bind_addr = "[::]:443"
+quic_bind_addr = "[::]:7844"
 cert_mode = "LetsEncrypt"
-contact = "${ACME_CONTACT}"
+hostname = "relay.chiko.dev"
+contact = "relay@chiko.dev"
+prod_tls = true
 cert_dir = "/certs"
-
-[stun]
-bind_addr = "0.0.0.0:3478"
-
-[metrics]
-bind_addr = "0.0.0.0:9090"
