@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 services:
   sisi-infra:
     build:
@@ -11,7 +12,7 @@ services:
       - RUST_LOG=info
 
   sisi-relay:
-    image: n0computer/iroh-relay:latest
+    image: docker.io/n0computer/iroh-relay:latest
     container_name: sisi-relay
     restart: unless-stopped
     ports:
@@ -29,7 +30,7 @@ services:
     command: --config /config/relay.toml
 
   sisi-dns:
-    image: n0computer/iroh-dns-server:latest
+    image: docker.io/n0computer/iroh-dns-server:latest
     container_name: sisi-dns
     restart: unless-stopped
     ports:
