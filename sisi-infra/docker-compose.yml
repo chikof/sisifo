@@ -32,7 +32,7 @@ services:
     restart: unless-stopped
     ports:
       - "5353:5353/udp"
-      - "8443:8443"
+      - "8080:8080"
     volumes:
       - ./dns.toml:/config/dns.toml:ro
       - dns-data:/data

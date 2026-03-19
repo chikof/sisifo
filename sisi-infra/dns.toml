@@ -1,11 +1,8 @@
 pkarr_put_rate_limit = "smart"
 
-[https]
-port = 8443
-domains = ["dns.chiko.dev"]
-cert_mode = "lets_encrypt"
-letsencrypt_prod = true
-letsencrypt_contact = "relay@chiko.dev"
+[http]
+port = 8080
+bind_addr = "0.0.0.0"
 
 [dns]
 port = 5353

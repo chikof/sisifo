@@ -50,7 +50,7 @@
         ];
 
         SISI_RELAY_URL = "https://relay.chiko.dev";
-        SISI_PKARR_URL = "https://dns.chiko.dev:8443/pkarr";
+        SISI_PKARR_URL = "http://dns.chiko.dev:8443/pkarr";
         SISI_DNS_ORIGIN = "dns.chiko.dev";
       };
     };
