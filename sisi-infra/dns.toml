@@ -1,13 +1,13 @@
 pkarr_put_rate_limit = "smart"
 
 [https]
-port = 443
+port = 8443
 domains = ["dns.chiko.dev"]
 cert_mode = "lets_encrypt"
 letsencrypt_prod = true
 
 [dns]
-port = 53
+port = 5353
 default_soa = "dns1.chiko.dev hostmaster.chiko.dev 0 10800 3600 604800 3600"
 default_ttl = 30
 origins = ["chiko.dev.", "."]
