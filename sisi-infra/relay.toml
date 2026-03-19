@@ -1,8 +1,15 @@
 [relay]
 hostname = "${RELAY_HOSTNAME}"
-port = 443
+http_bind_addr = "0.0.0.0:80"
+https_bind_addr = "0.0.0.0:443"
 
 [tls]
-cert_mode = "letsencrypt"
+cert_mode = "LetsEncrypt"
 contact = "${ACME_CONTACT}"
 cert_dir = "/certs"
+
+[stun]
+bind_addr = "0.0.0.0:3478"
+
+[metrics]
+bind_addr = "0.0.0.0:9090"

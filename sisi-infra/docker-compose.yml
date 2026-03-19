@@ -9,14 +9,6 @@ services:
       - "6640:6640"
     environment:
       - RUST_LOG=info
-    networks:
-      - sisi-net
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6640/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
 
   sisi-relay:
     image: ghcr.io/n0-computer/iroh-relay:latest
@@ -25,22 +17,16 @@ services:
     ports:
       - "80:80"
       - "443:443"
-    environment:
-      - RELAY_HOSTNAME=${RELAY_HOSTNAME}
-      - ACME_CONTACT=${ACME_CONTACT}
-      - RUST_LOG=info
+      - "443:443/udp"
+      - "3478:3478/udp"
     volumes:
       - ./relay.toml:/config/relay.toml:ro
       - relay-certs:/certs
+    environment:
+      - RELAY_HOSTNAME=${RELAY_HOSTNAME}
+      - ACME_CONTACT=${ACME_CONTACT}
+      - RUST_LOG=iroh_relay=info
     command: --config /config/relay.toml
-    networks:
-      - sisi-net
-    healthcheck:
-      test: ["CMD", "curl", "-f", "https://localhost/health", "-k"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
 
   sisi-dns:
     image: ghcr.io/n0-computer/iroh-dns-server:latest
@@ -49,26 +35,15 @@ services:
     ports:
       - "5353:5353/udp"
       - "8080:8080"
-    environment:
-      - DNS_ORIGIN=${DNS_ORIGIN}
-      - RUST_LOG=info
     volumes:
       - ./dns.toml:/config/dns.toml:ro
       - dns-data:/data
+    environment:
+      - DNS_ORIGIN=${DNS_ORIGIN}
+      - RUST_LOG=info
     command: --config /config/dns.toml
-    networks:
-      - sisi-net
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 15s
 
 volumes:
   relay-certs:
   dns-data:
 
-networks:
-  sisi-net:
-    driver: bridge
