@@ -17,6 +17,7 @@
 		history: string[];
 		historyIndex: number;
 		groupId: string | null;
+		iconUrl: string | null;
 	}
 	interface TabGroup {
 		id: string;
@@ -40,6 +41,7 @@
 			history: address ? [address] : [],
 			historyIndex: address ? 0 : -1,
 			groupId,
+			iconUrl: null,
 		};
 	}
 

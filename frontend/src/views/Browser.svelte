@@ -14,6 +14,7 @@
 		history: string[];
 		historyIndex: number;
 		groupId: string | null;
+		iconUrl: string | null;
 	}
 
 	interface TabGroup {
@@ -71,6 +72,7 @@
 			history: address ? [address] : [],
 			historyIndex: address ? 0 : -1,
 			groupId,
+			iconUrl: null,
 		};
 	}
 
@@ -122,7 +124,11 @@
 		const target = sanitize(addr ?? tab.inputValue);
 		if (!target) return;
 
-		updateTab(id, { loading: true, error: "" });
+		updateTab(id, {
+			loading: true,
+			error: "",
+			title: target.slice(0, 12) + "…",
+		});
 
 		try {
 			const url = await invoke<string>("resolve_address", {
@@ -133,6 +139,7 @@
 				...tab.history.slice(0, tab.historyIndex + 1),
 				target,
 			];
+
 			updateTab(id, {
 				gatewayUrl: url,
 				address: target,
@@ -142,6 +149,20 @@
 				history,
 				historyIndex: history.length - 1,
 			});
+
+			try {
+				const record = await invoke<{
+					name: string;
+					icon_url: string | null;
+				} | null>("index_site", { hash: target });
+
+				if (record?.name) {
+					updateTab(id, {
+						title: record.name,
+						iconUrl: record.icon_url ?? null,
+					});
+				}
+			} catch {}
 		} catch (e: any) {
 			updateTab(id, {
 				error: e?.toString() ?? "Failed",
@@ -385,6 +406,7 @@
 				{@const color = groupColor(tab.groupId)}
 				<div
 					class="tab"
+					title={tab.title}
 					class:active={tab.id === activeTabId}
 					class:drag-over={dragOverTabId === tab.id}
 					style={color ? `--tab-group-color: ${color}` : ""}
@@ -407,6 +429,36 @@
 					{/if}
 					{#if tab.loading}
 						<span class="tab-spinner"></span>
+					{:else if tab.iconUrl}
+						<img
+							src={tab.iconUrl}
+							alt=""
+							class="tab-favicon"
+							on:error={() => {
+								this.style.display = "none";
+								this.nextElementSibling.style.display = "flex";
+							}}
+						/>
+						<span class="tab-favicon-fallback" style="display:none">
+							<svg
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="1.8"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								><circle cx="12" cy="12" r="10" /><line
+									x1="2"
+									y1="12"
+									x2="22"
+									y2="12"
+								/><path
+									d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
+								/></svg
+							>
+						</span>
 					{:else}
 						<svg
 							width="12"
@@ -1397,5 +1449,22 @@
 	:global(.modal-btn.primary:disabled) {
 		opacity: 0.4;
 		cursor: default;
+	}
+
+	.tab-favicon {
+		width: 14px;
+		height: 14px;
+		border-radius: 3px;
+		object-fit: cover;
+		flex-shrink: 0;
+	}
+
+	.tab-favicon-fallback {
+		width: 14px;
+		height: 14px;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		opacity: 0.4;
 	}
 </style>

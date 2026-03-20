@@ -1,4 +1,5 @@
 use gossip::{GossipMessage, MessageKind, MessageStore, PersonalBlockList, get_gossip};
+use index::{IndexStore, SiteRecord, crawl_site};
 use node::signing_key;
 use publisher::{list_local_sites as publisher_list_local_sites, publish_dir};
 use resolver::resolve_to_gateway_url;
@@ -8,6 +9,8 @@ use std::path::PathBuf;
 use tauri::Emitter;
 use tracing::{info, warn};
 use types::{NodeStats, SiteMeta};
+
+const GATEWAY_BASE: &str = "http://127.0.0.1:7777";
 
 #[tauri::command]
 pub async fn publish_site(path: String, name: String) -> Result<String, String> {
@@ -251,4 +254,32 @@ pub async fn mod_block_user(topic: String, pubkey: String) -> Result<(), String>
         .await
         .map_err(|e| e.to_string())?;
     Ok(())
+}
+
+#[tauri::command]
+pub async fn index_site(hash: String) -> Result<Option<SiteRecord>, String> {
+    crawl_site(&hash, GATEWAY_BASE)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Full-text search across indexed sites
+#[tauri::command]
+pub async fn search_sites(query: String, limit: usize) -> Result<Vec<SiteRecord>, String> {
+    let store = IndexStore::open().map_err(|e| e.to_string())?;
+    store.search(&query, limit).map_err(|e| e.to_string())
+}
+
+/// Recently visited / most popular sites
+#[tauri::command]
+pub async fn recent_sites(limit: usize) -> Result<Vec<SiteRecord>, String> {
+    let store = IndexStore::open().map_err(|e| e.to_string())?;
+    store.recent(limit).map_err(|e| e.to_string())
+}
+
+/// Count indexed sites
+#[tauri::command]
+pub async fn index_count() -> Result<usize, String> {
+    let store = IndexStore::open().map_err(|e| e.to_string())?;
+    store.count().map_err(|e| e.to_string())
 }

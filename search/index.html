@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Sísifo Search</title>
+	<link rel="manifest" href="/manifest.json" />
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<link
+		href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap"
+		rel="stylesheet" />
+	<style>
+		*,
+		*::before,
+		*::after {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+		}
+
+		:root {
+			--bg: #f5f4f2;
+			--surface: #ffffff;
+			--border: #e2e0dc;
+			--border-2: #ccc9c4;
+			--text: #1a1a1a;
+			--text-2: #6b6760;
+			--text-3: #a09d99;
+			--accent: #0d9488;
+			--accent-light: #e6f4f3;
+			--mono: 'DM Mono', monospace;
+			--sans: 'DM Sans', sans-serif;
+			--radius: 8px;
+		}
+
+		html,
+		body {
+			height: 100%;
+		}
+
+		body {
+			background: var(--bg);
+			color: var(--text);
+			font-family: var(--sans);
+			font-size: 15px;
+			-webkit-font-smoothing: antialiased;
+			transition: background 0.2s;
+		}
+
+		/* ── LAYOUT ── */
+		.page {
+			min-height: 100vh;
+			display: flex;
+			flex-direction: column;
+		}
+
+		/* ── HERO (shown when no query) ── */
+		.hero {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			padding: 40px 20px 80px;
+			gap: 24px;
+		}
+
+		.hero-logo {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+		}
+
+		.hero-logo img {
+			width: 48px;
+			height: 48px;
+			border-radius: 10px;
+		}
+
+		.hero-name {
+			font-size: 32px;
+			font-weight: 600;
+			letter-spacing: -0.03em;
+			color: var(--text);
+		}
+
+		.hero-name span {
+			color: var(--accent);
+		}
+
+		.hero-tagline {
+			font-size: 15px;
+			color: var(--text-3);
+			text-align: center;
+		}
+
+		/* ── SEARCH BOX ── */
+		.search-wrap {
+			width: 100%;
+			max-width: 580px;
+		}
+
+		.search-box {
+			display: flex;
+			align-items: center;
+			background: var(--surface);
+			border: 1.5px solid var(--border);
+			border-radius: 28px;
+			padding: 0 8px 0 20px;
+			height: 52px;
+			gap: 8px;
+			transition: border-color 0.15s, box-shadow 0.15s;
+			box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+		}
+
+		.search-box:focus-within {
+			border-color: var(--accent);
+			box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent), 0 1px 4px rgba(0, 0, 0, 0.04);
+		}
+
+		.search-icon {
+			color: var(--text-3);
+			flex-shrink: 0;
+		}
+
+		.search-input {
+			flex: 1;
+			border: none;
+			background: none;
+			font-family: var(--sans);
+			font-size: 16px;
+			color: var(--text);
+			outline: none;
+		}
+
+		.search-input::placeholder {
+			color: var(--text-3);
+		}
+
+		.search-btn {
+			height: 36px;
+			padding: 0 18px;
+			background: var(--accent);
+			color: white;
+			border: none;
+			border-radius: 20px;
+			font-family: var(--sans);
+			font-size: 14px;
+			font-weight: 500;
+			cursor: pointer;
+			flex-shrink: 0;
+			transition: opacity 0.15s;
+		}
+
+		.search-btn:hover {
+			opacity: 0.9;
+		}
+
+		.search-clear {
+			width: 28px;
+			height: 28px;
+			border: none;
+			background: none;
+			color: var(--text-3);
+			border-radius: 50%;
+			cursor: pointer;
+			display: none;
+			align-items: center;
+			justify-content: center;
+			flex-shrink: 0;
+			transition: background 0.1s, color 0.1s;
+		}
+
+		.search-clear.visible {
+			display: flex;
+		}
+
+		.search-clear:hover {
+			background: var(--bg);
+			color: var(--text);
+		}
+
+		/* ── CATEGORY CHIPS (hero only) ── */
+		.category-chips {
+			display: flex;
+			gap: 8px;
+			flex-wrap: wrap;
+			justify-content: center;
+			max-width: 500px;
+		}
+
+		.chip {
+			padding: 5px 14px;
+			border: 1px solid var(--border);
+			border-radius: 20px;
+			font-size: 13px;
+			color: var(--text-2);
+			background: var(--surface);
+			cursor: pointer;
+			transition: border-color 0.15s, color 0.15s, background 0.15s;
+		}
+
+		.chip:hover {
+			border-color: var(--accent);
+			color: var(--accent);
+			background: var(--accent-light);
+		}
+
+		.chip.active {
+			border-color: var(--accent);
+			color: var(--accent);
+			background: var(--accent-light);
+		}
+
+		/* ── COMPACT HEADER (shown with results) ── */
+		.compact-header {
+			display: none;
+			align-items: center;
+			gap: 12px;
+			padding: 12px 20px;
+			background: var(--surface);
+			border-bottom: 1px solid var(--border);
+			position: sticky;
+			top: 0;
+			z-index: 10;
+		}
+
+		.compact-header.visible {
+			display: flex;
+		}
+
+		.compact-logo {
+			font-size: 16px;
+			font-weight: 600;
+			letter-spacing: -0.02em;
+			color: var(--text);
+			flex-shrink: 0;
+			text-decoration: none;
+		}
+
+		.compact-logo span {
+			color: var(--accent);
+		}
+
+		.compact-search {
+			flex: 1;
+			max-width: 540px;
+			display: flex;
+			align-items: center;
+			background: var(--bg);
+			border: 1px solid var(--border);
+			border-radius: 20px;
+			padding: 0 6px 0 14px;
+			height: 38px;
+			gap: 6px;
+			transition: border-color 0.15s;
+		}
+
+		.compact-search:focus-within {
+			border-color: var(--accent);
+		}
+
+		.compact-input {
+			flex: 1;
+			border: none;
+			background: none;
+			font-family: var(--sans);
+			font-size: 14px;
+			color: var(--text);
+			outline: none;
+		}
+
+		.compact-input::placeholder {
+			color: var(--text-3);
+		}
+
+		/* ── RESULTS AREA ── */
+		.results-area {
+			display: none;
+			padding: 20px 20px 40px;
+			max-width: 680px;
+			margin: 0 auto;
+			width: 100%;
+		}
+
+		.results-area.visible {
+			display: block;
+		}
+
+		.results-meta {
+			font-size: 13px;
+			color: var(--text-3);
+			margin-bottom: 20px;
+			font-family: var(--mono);
+		}
+
+		.results-meta strong {
+			color: var(--accent);
+		}
+
+		/* ── RESULT CARD ── */
+		.result-card {
+			padding: 16px 0;
+			border-bottom: 1px solid var(--border);
+			cursor: pointer;
+			transition: background 0.1s;
+		}
+
+		.result-card:first-child {
+			border-top: 1px solid var(--border);
+		}
+
+		.result-card:hover {
+			background: color-mix(in srgb, var(--accent) 3%, transparent);
+		}
+
+		.result-card:hover .result-name {
+			color: var(--accent);
+		}
+
+		.result-header {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			margin-bottom: 6px;
+		}
+
+		.result-icon {
+			width: 20px;
+			height: 20px;
+			border-radius: 4px;
+			object-fit: cover;
+			flex-shrink: 0;
+			background: var(--accent-light);
+		}
+
+		.result-icon-placeholder {
+			width: 20px;
+			height: 20px;
+			border-radius: 4px;
+			background: var(--accent-light);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			flex-shrink: 0;
+			color: var(--accent);
+		}
+
+		.result-name {
+			font-size: 15px;
+			font-weight: 500;
+			color: var(--text);
+			transition: color 0.1s;
+		}
+
+		.result-category {
+			font-size: 11px;
+			font-family: var(--mono);
+			color: var(--text-3);
+			background: var(--bg);
+			border: 1px solid var(--border);
+			padding: 1px 7px;
+			border-radius: 10px;
+			margin-left: auto;
+			flex-shrink: 0;
+		}
+
+		.result-description {
+			font-size: 13.5px;
+			color: var(--text-2);
+			line-height: 1.55;
+			margin-bottom: 6px;
+		}
+
+		.result-footer {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+		}
+
+		.result-hash {
+			font-family: var(--mono);
+			font-size: 11px;
+			color: var(--accent);
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			max-width: 280px;
+		}
+
+		.result-visits {
+			font-size: 12px;
+			color: var(--text-3);
+			flex-shrink: 0;
+		}
+
+		.result-keywords {
+			display: flex;
+			gap: 5px;
+			flex-wrap: wrap;
+			margin-top: 6px;
+		}
+
+		.kw-tag {
+			font-size: 11px;
+			font-family: var(--mono);
+			color: var(--text-3);
+			background: var(--bg);
+			padding: 1px 7px;
+			border-radius: 3px;
+			cursor: pointer;
+			transition: color 0.1s;
+		}
+
+		.kw-tag:hover {
+			color: var(--accent);
+		}
+
+		/* ── EMPTY STATE ── */
+		.empty-results {
+			padding: 60px 20px;
+			text-align: center;
+			color: var(--text-3);
+		}
+
+		.empty-results p {
+			font-size: 14px;
+			margin-top: 10px;
+		}
+
+		.empty-results code {
+			font-family: var(--mono);
+			font-size: 12px;
+		}
+
+		/* ── LOADING ── */
+		.loading {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			padding: 30px 0;
+			color: var(--text-3);
+			font-size: 13px;
+			font-family: var(--mono);
+		}
+
+		.spinner {
+			width: 16px;
+			height: 16px;
+			border: 2px solid var(--border);
+			border-top-color: var(--accent);
+			border-radius: 50%;
+			animation: spin 0.7s linear infinite;
+		}
+
+		@keyframes spin {
+			to {
+				transform: rotate(360deg);
+			}
+		}
+
+		/* ── STATS BAR ── */
+		.stats-bar {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			font-size: 12px;
+			color: var(--text-3);
+			font-family: var(--mono);
+			margin-top: 16px;
+		}
+
+		.stats-dot {
+			width: 6px;
+			height: 6px;
+			background: var(--accent);
+			border-radius: 50%;
+		}
+
+		/* ── FOOTER ── */
+		footer {
+			padding: 20px;
+			text-align: center;
+			font-size: 12px;
+			color: var(--text-3);
+			border-top: 1px solid var(--border);
+			margin-top: auto;
+			font-family: var(--mono);
+		}
+	</style>
+</head>
+
+<body>
+
+	<div class="page" id="page">
+
+		<!-- COMPACT HEADER (results mode) -->
+		<div class="compact-header" id="compact-header">
+			<a class="compact-logo" href="#" onclick="resetToHero()">
+				Sísifo<span>.</span>
+			</a>
+			<div class="compact-search">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+					stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-3);flex-shrink:0">
+					<circle cx="11" cy="11" r="8" />
+					<line x1="21" y1="21" x2="16.65" y2="16.65" />
+				</svg>
+				<input class="compact-input" id="compact-input" type="text" placeholder="Search the decentralized web…"
+					autocomplete="off" spellcheck="false" />
+			</div>
+		</div>
+
+		<!-- HERO -->
+		<div class="hero" id="hero">
+			<div class="hero-logo">
+				<img src="/icon.svg" alt="Sísifo" onerror="this.style.display='none'" />
+				<span class="hero-name">Sísifo<span>.</span></span>
+			</div>
+			<p class="hero-tagline">Search the decentralized web</p>
+
+			<div class="search-wrap">
+				<div class="search-box">
+					<svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none"
+						stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="11" cy="11" r="8" />
+						<line x1="21" y1="21" x2="16.65" y2="16.65" />
+					</svg>
+					<input class="search-input" id="hero-input" type="text" placeholder="Search sites, people, topics…"
+						autocomplete="off" spellcheck="false" autofocus />
+					<button class="search-clear" id="search-clear" onclick="clearSearch()">
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+							stroke-width="2.5" stroke-linecap="round">
+							<line x1="18" y1="6" x2="6" y2="18" />
+							<line x1="6" y1="6" x2="18" y2="18" />
+						</svg>
+					</button>
+					<button class="search-btn" onclick="doSearch()">Search</button>
+				</div>
+			</div>
+
+			<div class="category-chips" id="category-chips">
+				<button class="chip" onclick="searchCategory('blog')">📝 Blogs</button>
+				<button class="chip" onclick="searchCategory('forum')">💬 Forums</button>
+				<button class="chip" onclick="searchCategory('tool')">🔧 Tools</button>
+				<button class="chip" onclick="searchCategory('art')">🎨 Art</button>
+				<button class="chip" onclick="searchCategory('docs')">📚 Docs</button>
+				<button class="chip" onclick="searchCategory('music')">🎵 Music</button>
+			</div>
+
+			<div class="stats-bar" id="stats-bar"></div>
+		</div>
+
+		<!-- RESULTS -->
+		<div class="results-area" id="results-area">
+			<div id="results-meta" class="results-meta"></div>
+			<div id="results-list"></div>
+		</div>
+
+		<footer>
+			sísifo search · your index, your results · no tracking, no ads
+		</footer>
+	</div>
+
+	<script>
+		const pendingCalls = new Map();
+		const insideSisifo = window.parent !== window;
+
+		function invoke(cmd, args = {}) {
+			if (!insideSisifo) return mockInvoke(cmd, args);
+			return new Promise((resolve, reject) => {
+				const id = Math.random().toString(36).slice(2);
+				pendingCalls.set(id, {resolve, reject});
+				window.parent.postMessage({id, cmd, args}, '*');
+				setTimeout(() => {
+					if (pendingCalls.has(id)) {
+						pendingCalls.delete(id);
+						reject(new Error(`${cmd} timed out`));
+					}
+				}, 10000);
+			});
+		}
+
+		window.addEventListener('message', (e) => {
+			const d = e.data;
+			if (!d || !d.id || !pendingCalls.has(d.id)) return;
+			const {resolve, reject} = pendingCalls.get(d.id);
+			pendingCalls.delete(d.id);
+			d.error ? reject(new Error(d.error)) : resolve(d.result);
+		});
+
+		const mockSites = [
+			{hash: 'bafyreiabc123def456', name: 'Sísifo Forum', short_name: 'Forum', description: 'A decentralized P2P forum built on Sísifo gossip protocol. Discuss anything without censorship.', keywords: ['forum', 'p2p', 'discussion'], icon_url: null, category: 'forum', lang: 'en', accent_color: '#c2410c', visit_count: 42, indexed_at: Date.now() / 1000 - 3600},
+			{hash: 'bafyreidef789ghi012', name: 'Chiko\'s Blog', short_name: 'Blog', description: 'Writing about Rust, NixOS, decentralized systems, and building things that last.', keywords: ['rust', 'nixos', 'blog', 'systems'], icon_url: null, category: 'blog', lang: 'en', accent_color: '#0369a1', visit_count: 18, indexed_at: Date.now() / 1000 - 7200},
+			{hash: 'bafyreijkl345mno678', name: 'iroh Docs Mirror', short_name: 'iroh', description: 'Offline-first mirror of the iroh P2P library documentation, always available on the decentralized web.', keywords: ['iroh', 'docs', 'p2p', 'rust'], icon_url: null, category: 'docs', lang: 'en', accent_color: '#6d28d9', visit_count: 7, indexed_at: Date.now() / 1000 - 86400},
+		];
+
+		async function mockInvoke(cmd, args) {
+			await new Promise(r => setTimeout(r, 150));
+			if (cmd === 'search_sites') {
+				const q = (args.query || '').toLowerCase();
+				if (!q) return mockSites.slice(0, args.limit || 10);
+				return mockSites.filter(s =>
+					s.name.toLowerCase().includes(q) ||
+					s.description?.toLowerCase().includes(q) ||
+					s.keywords?.some(k => k.includes(q)) ||
+					s.category?.includes(q)
+				);
+			}
+			if (cmd === 'recent_sites') return mockSites.slice(0, args.limit || 10);
+			if (cmd === 'index_count') return mockSites.length;
+			return null;
+		}
+
+		let currentQuery = '';
+		let currentCategory = null;
+
+		async function init() {
+			// Load index stats
+			try {
+				const count = await invoke('index_count');
+				const statsBar = document.getElementById('stats-bar');
+				if (count > 0) {
+					statsBar.innerHTML = `<span class="stats-dot"></span> ${count} site${count !== 1 ? 's' : ''} in your local index`;
+				}
+			} catch { }
+
+			// Load recent sites as suggestions
+			try {
+				const recent = await invoke('recent_sites', {limit: 6});
+				if (recent && recent.length > 0) {
+					renderRecentSuggestions(recent);
+				}
+			} catch { }
+
+			// Wire up inputs
+			const heroInput = document.getElementById('hero-input');
+			const compactInput = document.getElementById('compact-input');
+			const clearBtn = document.getElementById('search-clear');
+
+			heroInput.addEventListener('input', () => {
+				clearBtn.classList.toggle('visible', heroInput.value.length > 0);
+			});
+
+			heroInput.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter') doSearch();
+			});
+
+			compactInput.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter') {
+					currentQuery = compactInput.value.trim();
+					runSearch(currentQuery, null);
+				}
+			});
+
+			compactInput.addEventListener('input', () => {
+				currentQuery = compactInput.value.trim();
+				if (!currentQuery) resetToHero();
+			});
+		}
+
+		function renderRecentSuggestions(sites) {
+			// Add "Recently discovered" section below chips
+			const hero = document.getElementById('hero');
+			const existing = document.getElementById('recent-section');
+			if (existing) existing.remove();
+
+			const section = document.createElement('div');
+			section.id = 'recent-section';
+			section.style.cssText = 'width:100%;max-width:580px;margin-top:8px';
+			section.innerHTML = `
+    <p style="font-size:12px;color:var(--text-3);font-family:var(--mono);margin-bottom:10px;text-align:center">
+      recently discovered
+    </p>
+    <div style="display:flex;flex-direction:column;gap:1px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)">
+      ${sites.map(s => `
+        <div onclick="navigateTo('${s.hash}')" style="
+          display:flex;align-items:center;gap:10px;padding:10px 14px;
+          cursor:pointer;transition:background 0.1s;background:var(--surface);
+        " onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='var(--surface)'">
+          ${s.icon_url
+					? `<img src="${s.icon_url}" style="width:18px;height:18px;border-radius:3px;object-fit:cover" />`
+					: `<div style="width:18px;height:18px;border-radius:3px;background:var(--accent-light);display:flex;align-items:center;justify-content:center">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+               </div>`
+				}
+          <span style="font-size:13.5px;font-weight:500;color:var(--text);flex:1">${escapeHtml(s.name)}</span>
+          ${s.category ? `<span style="font-size:11px;font-family:var(--mono);color:var(--text-3)">${s.category}</span>` : ''}
+        </div>
+      `).join('')}
+    </div>
+  `;
+			hero.appendChild(section);
+		}
+
+		// ── SEARCH ─────────────────────────────────────────────────────────────────
+		async function doSearch() {
+			const input = document.getElementById('hero-input');
+			currentQuery = input.value.trim();
+			if (!currentQuery) return;
+			currentCategory = null;
+			await runSearch(currentQuery, null);
+		}
+
+		async function searchCategory(category) {
+			currentCategory = category;
+			currentQuery = '';
+			await runSearch('', category);
+		}
+
+		async function runSearch(query, category) {
+			showResultsMode();
+
+			const resultsList = document.getElementById('results-list');
+			const resultsMeta = document.getElementById('results-meta');
+			resultsList.innerHTML = `<div class="loading"><span class="spinner"></span>Searching…</div>`;
+			resultsMeta.textContent = '';
+
+			const compactInput = document.getElementById('compact-input');
+			compactInput.value = query || (category ? `category:${category}` : '');
+
+			try {
+				let results;
+				if (category && !query) {
+					results = await invoke('search_sites', {query: category, limit: 30});
+				} else {
+					results = await invoke('search_sites', {query: query || '', limit: 30});
+				}
+
+				const elapsed = ''; // could time it
+				if (!results || results.length === 0) {
+					resultsMeta.textContent = 'No results found';
+					resultsList.innerHTML = `
+        <div class="empty-results">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto;opacity:.3"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <p>No sites found for <code>${escapeHtml(query || category || '')}</code></p>
+          <p style="margin-top:6px;font-size:13px">Browse more sites to grow your local index.</p>
+        </div>`;
+					return;
+				}
+
+				resultsMeta.innerHTML = `<strong>${results.length}</strong> result${results.length !== 1 ? 's' : ''} from your local index`;
+				resultsList.innerHTML = results.map(site => renderResult(site)).join('');
+
+				// Wire click handlers
+				resultsList.querySelectorAll('.result-card').forEach(card => {
+					card.addEventListener('click', () => navigateTo(card.dataset.hash));
+				});
+				resultsList.querySelectorAll('.kw-tag').forEach(tag => {
+					tag.addEventListener('click', (e) => {
+						e.stopPropagation();
+						const heroInput = document.getElementById('hero-input');
+						heroInput.value = tag.textContent;
+						runSearch(tag.textContent, null);
+					});
+				});
+
+			} catch (e) {
+				resultsList.innerHTML = `<div class="empty-results"><p>Search failed: ${escapeHtml(String(e))}</p></div>`;
+			}
+		}
+
+		function renderResult(site) {
+			const iconHtml = site.icon_url
+				? `<img class="result-icon" src="${escapeHtml(site.icon_url)}" alt="" onerror="this.style.display='none'" />`
+				: `<div class="result-icon-placeholder">
+         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+       </div>`;
+
+			const kwHtml = (site.keywords || []).slice(0, 5).map(k =>
+				`<span class="kw-tag">${escapeHtml(k)}</span>`
+			).join('');
+
+			return `
+    <div class="result-card" data-hash="${escapeHtml(site.hash)}">
+      <div class="result-header">
+        ${iconHtml}
+        <span class="result-name">${escapeHtml(site.name)}</span>
+        ${site.category ? `<span class="result-category">${escapeHtml(site.category)}</span>` : ''}
+      </div>
+      ${site.description ? `<p class="result-description">${escapeHtml(site.description)}</p>` : ''}
+      <div class="result-footer">
+        <span class="result-hash">${site.hash.slice(0, 24)}…</span>
+        ${site.visit_count > 0 ? `<span class="result-visits">${site.visit_count} visit${site.visit_count !== 1 ? 's' : ''}</span>` : ''}
+      </div>
+      ${kwHtml ? `<div class="result-keywords">${kwHtml}</div>` : ''}
+    </div>
+  `;
+		}
+
+		function navigateTo(hash) {
+			// Tell the outer Sisifo shell to navigate to this site
+			// Uses the same postMessage bridge — the shell handles navigation
+			invoke('navigate_to', {hash}).catch(() => {
+				// Fallback: if navigate_to isn't implemented, copy to clipboard
+				navigator.clipboard.writeText(`sisi://${hash}`).then(() => {
+					alert(`Address copied: sisi://${hash}\nPaste it in the address bar.`);
+				});
+			});
+		}
+
+		function showResultsMode() {
+			document.getElementById('hero').style.display = 'none';
+			document.getElementById('compact-header').classList.add('visible');
+			document.getElementById('results-area').classList.add('visible');
+		}
+
+		function resetToHero() {
+			document.getElementById('hero').style.display = '';
+			document.getElementById('compact-header').classList.remove('visible');
+			document.getElementById('results-area').classList.remove('visible');
+			document.getElementById('hero-input').value = '';
+			document.getElementById('compact-input').value = '';
+			document.getElementById('search-clear').classList.remove('visible');
+			currentQuery = '';
+			currentCategory = null;
+			document.getElementById('hero-input').focus();
+		}
+
+		function clearSearch() {
+			document.getElementById('hero-input').value = '';
+			document.getElementById('search-clear').classList.remove('visible');
+			document.getElementById('hero-input').focus();
+		}
+
+		function escapeHtml(s) {
+			return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+		}
+
+		init();
+	</script>
+</body>
+
+</html>

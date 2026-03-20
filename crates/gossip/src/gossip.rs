@@ -1,4 +1,4 @@
-use crate::{MessageKind, message::GossipMessage, store::MessageStore, topic::topic_id};
+use crate::{message::GossipMessage, store::MessageStore, topic::topic_id};
 use anyhow::{Result, anyhow};
 use iroh_gossip::Gossip;
 use node::SisiNode;

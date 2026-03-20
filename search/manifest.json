@@ -1,0 +1,11 @@
+{
+	"sisifo": "1",
+	"name": "Sísifo Search",
+	"short_name": "Search",
+	"description": "Search the decentralized Sísifo web",
+	"keywords": ["search", "decentralized", "p2p", "sisifo"],
+	"icon": "/icon.svg",
+	"accent_color": "#0d9488",
+	"category": "search",
+	"lang": "en"
+}

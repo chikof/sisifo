@@ -60,6 +60,10 @@ pub fn run() {
             commands::unblock_user,
             commands::get_blocked_users,
             commands::mod_block_user,
+            commands::index_site,
+            commands::search_sites,
+            commands::recent_sites,
+            commands::index_count,
         ])
         .run(tauri::generate_context!())
         .expect("error running tauri application");
