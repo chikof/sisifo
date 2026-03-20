@@ -1,17 +1,17 @@
-use iroh::Endpoint;
-use iroh_metrics::{MetricValue, MetricsGroupSet};
-use std::{path::Path, sync::atomic::Ordering};
-
 use super::lifecycle::SisiNode;
+use iroh_metrics::{MetricValue, MetricsGroupSet};
 use types::{NodeStats, Result};
 
 pub async fn collect_stats() -> Result<NodeStats> {
     let handle = SisiNode::get()?;
     let node_id = handle.endpoint.id().to_string();
 
-    let peer_count = handle.peer_count.load(Ordering::Relaxed);
-    let (bytes_sent, bytes_recv) = collect_byte_metric(&handle.endpoint);
-    let (relay_url, is_online) = collect_connectivity(&handle.endpoint).await;
+    let (bytes_sent, bytes_recv, peer_count) = read_metrics(&handle.endpoint);
+
+    let node_addr = handle.endpoint.addr();
+    let relay_url = node_addr.relay_urls().next().map(|u| u.to_string());
+    let is_online = relay_url.is_some();
+
     let hosted_sites = count_hosted_sites(&handle.data_dir).await;
 
     Ok(NodeStats {
@@ -25,12 +25,14 @@ pub async fn collect_stats() -> Result<NodeStats> {
     })
 }
 
-fn collect_byte_metric(endpoint: &Endpoint) -> (u64, u64) {
+fn read_metrics(endpoint: &iroh::Endpoint) -> (u64, u64, usize) {
     let mut sent = 0u64;
     let mut recv = 0u64;
+    let mut conns_opened = 0u64;
+    let mut conns_closed = 0u64;
 
     for (group, metric) in endpoint.metrics().iter() {
-        let name = format!("{group}:{}", metric.name());
+        let name = format!("{}/{}", group, metric.name());
         let value = match metric.value() {
             MetricValue::Counter(v) => v,
             MetricValue::Gauge(v) => v as u64,
@@ -38,33 +40,29 @@ fn collect_byte_metric(endpoint: &Endpoint) -> (u64, u64) {
         };
 
         match name.as_str() {
-            "socket:send_bytes" => sent = value,
-            "socket:recv_bytes" => recv = value,
-
-            "socket:send_datagrams" if sent == 0 => sent = value,
-            "socket:recv_datagrams" if recv == 0 => recv = value,
+            // Bytes sent - sum all transports
+            "socket/send_ipv4" => sent = sent.saturating_add(value),
+            "socket/send_ipv6" => sent = sent.saturating_add(value),
+            "socket/send_relay" => sent = sent.saturating_add(value),
+            // Bytes received - sum all transports
+            "socket/recv_data_ipv4" => recv = recv.saturating_add(value),
+            "socket/recv_data_ipv6" => recv = recv.saturating_add(value),
+            "socket/recv_data_relay" => recv = recv.saturating_add(value),
+            // Peer count - live connections
+            "socket/num_conns_opened" => conns_opened = value,
+            "socket/num_conns_closed" => conns_closed = value,
 
             _ => {}
         }
     }
 
-    (sent, recv)
+    let peer_count = conns_opened.saturating_sub(conns_closed) as usize;
+    (sent, recv, peer_count)
 }
 
-async fn collect_connectivity(endpoint: &Endpoint) -> (Option<String>, bool) {
-    let addr = endpoint.addr();
-
-    let relay_url = addr.relay_urls().next().map(|u| u.to_string());
-    let has_direct = addr.ip_addrs().next().is_some();
-
-    let is_online = relay_url.is_some() || has_direct;
-
-    (relay_url, is_online)
-}
-
-async fn count_hosted_sites(data_dir: &Path) -> usize {
-    let index_path = data_dir.join("published").join("index.json");
-    if !index_path.exists() {
+async fn count_hosted_sites(data_dir: &std::path::Path) -> usize {
+    let path = data_dir.join("published").join("index.json");
+    if !path.exists() {
         return 0;
     }
 
@@ -73,7 +71,7 @@ async fn count_hosted_sites(data_dir: &Path) -> usize {
         sites: Vec<serde_json::Value>,
     }
 
-    tokio::fs::read(&index_path)
+    tokio::fs::read(&path)
         .await
         .ok()
         .and_then(|b| serde_json::from_slice::<Index>(&b).ok())
