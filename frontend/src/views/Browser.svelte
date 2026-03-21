@@ -687,6 +687,7 @@
 					src={activeTab.gatewayUrl}
 					title="Sisifo site"
 					sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"
+					style="transform: translateZ(0); will-change: scroll-position;"
 				></iframe>
 			{/if}
 		</div>

@@ -41,7 +41,7 @@
           libsoup_3
         ]);
 
-        WEBKIT_DISABLE_COMPOSITING_MODE = "1";
+        # WEBKIT_DISABLE_COMPOSITING_MODE = "1";
         GDK_BACKEND = "x11";
 
         GSETTINGS_SCHEMA_DIR = pkgs.lib.concatStringsSep ":" [
