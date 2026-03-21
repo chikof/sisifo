@@ -1,5 +1,6 @@
 use anyhow::anyhow;
 use ed25519_dalek::SigningKey;
+use iroh_blobs::HashAndFormat;
 use manifest::{ManifestBuilder, sign_manifest};
 use names::{NameClaim, NameStore};
 use node::SisiNode;
@@ -96,8 +97,19 @@ pub async fn publish_dir(
         effective_scope,
     )
     .map_err(|e| SisiError::Iroh(anyhow!(e)))?;
+
     pointer_store
         .upsert_trusted(pointer)
+        .await
+        .map_err(|e| SisiError::Iroh(anyhow!(e)))?;
+
+    let site_hash = SiteHash(manifest_outcome.hash);
+    let tag = format!("site:{site_hash}");
+
+    handle
+        .blobs
+        .tags()
+        .set(tag.clone(), HashAndFormat::raw(manifest_outcome.hash))
         .await
         .map_err(|e| SisiError::Iroh(anyhow!(e)))?;
 

@@ -201,6 +201,16 @@ pub async fn unpin_site(hash: String) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
 
+    let handle = node::SisiNode::get().map_err(|e| e.to_string())?;
+    let tag = format!("site:{hash}");
+    handle.blobs.tags().delete(tag).await.ok();
+
+    if let Ok(mut store) = pointer::PointerStore::load().await {
+        store.remove_by_hash(&hash).await.ok();
+    }
+
+    remove_pointer_for_hash(&hash).await;
+
     match DaemonClient::connect().await {
         Some(mut client) => client
             .send(DaemonCommand::Unpin { hash })
@@ -404,4 +414,10 @@ pub async fn recent_sites(limit: usize) -> Result<Vec<SiteRecord>, String> {
 pub async fn index_count() -> Result<usize, String> {
     let store = IndexStore::open().map_err(|e| e.to_string())?;
     store.count().map_err(|e| e.to_string())
+}
+
+async fn remove_pointer_for_hash(hash: &str) {
+    if let Ok(mut store) = pointer::PointerStore::load().await {
+        store.remove_by_hash(hash).await.ok();
+    }
 }

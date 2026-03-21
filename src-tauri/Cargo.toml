@@ -28,6 +28,7 @@ sisi-daemon = { path = "../crates/sisi-daemon" }
 gossip = { path = "../crates/gossip" }
 index = { path = "../crates/index" }
 names = { path = "../crates/names" }
+pointer = { path = "../crates/pointer" }
 tokio = { workspace = true }
 serde = { workspace = true }
 ed25519-dalek = { workspace = true }
@@ -36,3 +37,4 @@ anyhow = { workspace = true }
 hex = { workspace = true }
 tracing = { workspace = true }
 dirs = { workspace = true }
+iroh-blobs = { workspace = true }

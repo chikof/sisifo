@@ -179,6 +179,16 @@ impl PointerStore {
             .unwrap_or(1)
     }
 
+    pub async fn remove_by_hash(&mut self, hash: &str) -> Result<()> {
+        let before = self.pointers.len();
+        self.pointers.retain(|_, v| v.hash != hash);
+        if self.pointers.len() < before {
+            self.save().await?;
+        }
+
+        Ok(())
+    }
+
     async fn save(&self) -> Result<()> {
         tokio::fs::create_dir_all(self.path.parent().unwrap()).await?;
         let disk = StoreDisk {
