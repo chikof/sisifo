@@ -45,20 +45,20 @@
 		};
 	}
 
-	let tabs: Tab[] = [newTab()];
-	let activeTabId: string = tabs[0].id;
-	let groups: TabGroup[] = [];
+	let tabs = [newTab()];
+	let activeTabId = $state<string>(tabs[0].id);
+	let groups = $state<TabGroup[]>([]);
 
 	// null = no panel open (full browser), string = panel open
 	type Panel = "publish" | "sites" | "stats" | null;
-	let activePanel: Panel = null;
+	let activePanel = $state<Panel>(null);
 
 	function togglePanel(panel: Panel) {
 		activePanel = activePanel === panel ? null : panel;
 	}
 
-	let daemonRunning = false;
-	let nodeId = "";
+	let daemonRunning = $state(false);
+	let nodeId = $state("");
 
 	onMount(async () => {
 		try {
@@ -124,7 +124,7 @@
 				<button
 					class="rail-btn"
 					class:active={activePanel === tool.id}
-					on:click={() => togglePanel(tool.id)}
+					onclick={() => togglePanel(tool.id)}
 					title={tool.label}
 					aria-label={tool.label}
 				>
@@ -143,7 +143,7 @@
 				title={daemonRunning
 					? "sisid running"
 					: "sisid offline — click for node stats"}
-				on:click={() => togglePanel("stats")}
+				onclick={() => togglePanel("stats")}
 				aria-label="Node status"
 			>
 				<span class="daemon-dot" class:online={daemonRunning}></span>
@@ -154,14 +154,14 @@
 	<!-- MAIN AREA: browser always mounted -->
 	<div class="main" class:panel-open={activePanel !== null}>
 		<div class="browser-wrap">
-			<Browser bind:tabs bind:activeTabId bind:groups />
+			<Browser {groups} {tabs} {activeTabId} />
 		</div>
 
 		<!-- PANEL OVERLAY -->
 		{#if activePanel}
 			<div
 				class="panel-backdrop"
-				on:click={closePanel}
+				onclick={closePanel}
 				aria-hidden="true"
 			></div>
 			<div class="panel" role="dialog" aria-label={activePanel}>
@@ -175,7 +175,7 @@
 					</span>
 					<button
 						class="panel-close"
-						on:click={closePanel}
+						onclick={closePanel}
 						aria-label="Close panel"
 					>
 						<svg

@@ -1,6 +1,7 @@
 {
 	"sisifo": "1",
 	"name": "Sísifo Forum",
+	"version": 1,
 	"short_name": "Forum",
 	"description": "Communicate with other members of the Sísifo community",
 	"keywords": ["forum", "decentralized", "p2p", "sisifo"],

@@ -26,6 +26,8 @@ pub struct SiteManifest {
 pub struct SiteMeta {
     pub name: String,
     pub hash: String,
+    pub permanent_address: String,
+    pub version: u32,
     pub file_count: usize,
     pub total_size: u64,
     pub updated_at: u64,
@@ -39,6 +41,8 @@ where
         SiteMeta {
             name: m.name.clone(),
             hash: hash.as_ref().to_string(),
+            permanent_address: hex::encode(&m.owner_pubkey),
+            version: m.version,
             file_count: m.files.len(),
             total_size: m.files.values().map(|f| f.size).sum(),
             updated_at: m.updated_at,

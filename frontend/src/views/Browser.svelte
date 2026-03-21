@@ -24,13 +24,17 @@
 		collapsed: boolean;
 	}
 
-	export let tabs: Tab[];
-	export let activeTabId: string;
-	export let groups: TabGroup[];
+	let {
+		tabs,
+		activeTabId,
+		groups,
+	}: { tabs: Tab[]; activeTabId: string; groups: TabGroup[] } = $props();
 
 	// Drag state
-	let dragTabId: string | null = null;
-	let dragOverTabId: string | null = null;
+	let dragTabId = $state<string | null>(null);
+
+	let dragOverTabId = $state<string | null>(null);
+	let activeTab = $state<Tab>();
 
 	// Context menu
 	let ctxMenu: { x: number; y: number; tabId: string } | null = null;
@@ -56,6 +60,10 @@
 		"#4338ca",
 	];
 
+	$effect(() => {
+		activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0];
+	});
+
 	function uid() {
 		return Math.random().toString(36).slice(2, 9);
 	}
@@ -75,8 +83,6 @@
 			iconUrl: null,
 		};
 	}
-
-	$: activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0];
 
 	function openTab(address = "", groupId: string | null = null) {
 		const tab = newTab(address, groupId);
@@ -293,25 +299,29 @@
 		return groups.find((g) => g.id === groupId)?.name ?? null;
 	}
 
+	let orderedTabs = $state<(Tab | TabGroup)[]>();
+
 	// Tabs ordered: group tabs cluster together, ungrouped tabs in between
-	$: orderedTabs = (() => {
-		const result: (Tab | TabGroup)[] = [];
-		const seen = new Set<string>();
-		for (const tab of tabs) {
-			if (tab.groupId && !seen.has(tab.groupId)) {
-				const group = groups.find((g) => g.id === tab.groupId);
-				if (group) {
-					result.push(group);
-					seen.add(tab.groupId);
+	$effect(() => {
+		orderedTabs = (() => {
+			const result: (Tab | TabGroup)[] = [];
+			const seen = new Set<string>();
+			for (const tab of tabs) {
+				if (tab.groupId && !seen.has(tab.groupId)) {
+					const group = groups.find((g) => g.id === tab.groupId);
+					if (group) {
+						result.push(group);
+						seen.add(tab.groupId);
+					}
 				}
+				const group = tab.groupId
+					? groups.find((g) => g.id === tab.groupId)
+					: null;
+				if (!group?.collapsed) result.push(tab);
 			}
-			const group = tab.groupId
-				? groups.find((g) => g.id === tab.groupId)
-				: null;
-			if (!group?.collapsed) result.push(tab);
-		}
-		return result;
-	})();
+			return result;
+		})();
+	});
 
 	async function handleBridgeMessage(event: MessageEvent) {
 		if (

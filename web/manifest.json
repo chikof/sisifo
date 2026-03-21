@@ -1,6 +1,7 @@
 {
 	"sisifo": "1",
 	"name": "Sísifo",
+	"version": 1,
 	"short_name": "Sísi",
 	"description": "Welcome to Sísifo",
 	"keywords": ["sisi", "decentralized", "landing", "sisifo"],

@@ -1,6 +1,7 @@
 {
 	"sisifo": "1",
 	"name": "Sísifo Search",
+	"version": 1,
 	"short_name": "Search",
 	"description": "Search the decentralized Sísifo web",
 	"keywords": ["search", "decentralized", "p2p", "sisifo"],

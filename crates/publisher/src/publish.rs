@@ -1,8 +1,10 @@
+use anyhow::anyhow;
 use ed25519_dalek::SigningKey;
 use manifest::{ManifestBuilder, sign_manifest};
 use node::SisiNode;
+use pointer::{PointerStore, create_pointer};
 use std::path::Path;
-use tracing::debug;
+use tracing::{debug, info};
 use types::{Result, SisiError, SiteFile, SiteHash, SiteMeta};
 use walkdir::WalkDir;
 
@@ -11,6 +13,7 @@ use crate::register_site;
 pub struct PublishResult {
     pub site_hash: SiteHash,
     pub meta: SiteMeta,
+    pub permanent_address: String,
 }
 
 pub async fn publish_dir(
@@ -20,6 +23,7 @@ pub async fn publish_dir(
 ) -> Result<PublishResult> {
     let handle = SisiNode::get()?;
     let blobs = &handle.blobs;
+    let pubkey = hex::encode(signing_key.verifying_key().to_bytes());
 
     let mut builder = ManifestBuilder::new(name, signing_key.verifying_key().to_bytes().to_vec());
 
@@ -55,7 +59,12 @@ pub async fn publish_dir(
         });
     }
 
-    let manifest = sign_manifest(builder.build_unsigned(), signing_key)?;
+    let mut pointer_store = PointerStore::load()
+        .await
+        .map_err(|e| SisiError::Iroh(anyhow!(e)))?;
+    let version = pointer_store.next_version(&pubkey);
+
+    let manifest = sign_manifest(builder.build_unsigned_with_version(version), signing_key)?;
 
     let manifest_bytes = serde_json::to_vec(&manifest)?;
     let manifest_outcome = blobs.add_bytes(manifest_bytes).await?;
@@ -65,5 +74,21 @@ pub async fn publish_dir(
 
     register_site(&site_hash.to_string(), &manifest).await?;
 
-    Ok(PublishResult { site_hash, meta })
+    let pointer = create_pointer(signing_key, &site_hash.to_string(), version)
+        .map_err(|e| SisiError::Iroh(anyhow!(e)))?;
+    pointer_store
+        .upsert(pointer)
+        .await
+        .map_err(|e| SisiError::Iroh(anyhow!(e)))?;
+
+    info!(
+        "published '{name}' v{version} → {}",
+        &site_hash.to_string()[..12]
+    );
+
+    Ok(PublishResult {
+        site_hash,
+        meta,
+        permanent_address: pubkey,
+    })
 }

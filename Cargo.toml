@@ -12,6 +12,7 @@ members = [
   "sisi-infra",
   "crates/gossip",
   "crates/index",
+  "crates/pointer",
 ]
 
 [workspace.dependencies]

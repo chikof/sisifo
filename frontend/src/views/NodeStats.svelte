@@ -12,12 +12,12 @@
 		is_online: boolean;
 	}
 
-	let stats: NodeStats | null = null;
-	let error = "";
-	let loading = true;
-	let daemonRunning = false;
-	let nodeIdentity = "";
-	let copiedId = false;
+	let stats = $state<NodeStats | null>(null);
+	let error = $state("");
+	let loading = $state(true);
+	let daemonRunning = $state(false);
+	let nodeIdentity = $state("");
+	let copiedId = $state(false);
 
 	let interval: ReturnType<typeof setInterval>;
 
@@ -73,7 +73,7 @@
 		</div>
 		<button
 			class="refresh-btn"
-			on:click={loadAll}
+			onclick={loadAll}
 			disabled={loading}
 			title="Refresh"
 		>
@@ -127,7 +127,7 @@
 				{#if nodeIdentity}
 					<button
 						class="copy-btn"
-						on:click={copyId}
+						onclick={copyId}
 						title="Copy node ID"
 					>
 						{#if copiedId}

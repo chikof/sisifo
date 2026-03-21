@@ -4554,6 +4554,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "pointer"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ed25519-dalek 2.2.0",
+ "hex",
+ "node",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "types",
+]
+
+[[package]]
 name = "polyval"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4799,10 +4814,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "ed25519-dalek 2.2.0",
+ "hex",
  "iroh-blobs",
  "manifest",
  "mime_guess",
  "node",
+ "pointer",
  "serde",
  "serde_json",
  "tokio",
@@ -5239,6 +5256,7 @@ dependencies = [
  "anyhow",
  "iroh-blobs",
  "node",
+ "pointer",
  "serde_json",
  "types",
 ]
@@ -7174,6 +7192,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "ed25519-dalek 2.2.0",
+ "hex",
  "iroh-blobs",
  "n0-error",
  "serde",

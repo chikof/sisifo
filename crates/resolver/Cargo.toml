@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 types = { path = "../types" }
 node = { path = "../node" }
+pointer = { path = "../pointer" }
 iroh-blobs = { workspace = true }
 anyhow = { workspace = true }
 serde_json = { workspace = true }

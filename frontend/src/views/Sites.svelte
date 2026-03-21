@@ -5,6 +5,8 @@
 	interface SiteMeta {
 		name: string;
 		hash: string;
+		permanent_address: string;
+		version: number;
 		file_count: number;
 		total_size: number;
 		updated_at: number;
@@ -15,6 +17,8 @@
 	let error = "";
 	let unpinning: string | null = null;
 	let copied: string | null = null;
+	let updatingHash: string | null = null;
+	let copiedPerm: string | null = null;
 
 	onMount(load);
 
@@ -46,6 +50,27 @@
 		await navigator.clipboard.writeText(`sisi://${hash}`);
 		copied = hash;
 		setTimeout(() => (copied = null), 2000);
+	}
+
+	async function updateSite(site: SiteMeta) {
+		// Pick the same folder again and republish
+		const dir = await invoke<string | null>("pick_folder");
+		if (!dir) return;
+		updatingHash = site.hash;
+		try {
+			await invoke("update_site", { path: dir, name: site.name });
+			await load(); // refresh list
+		} catch (e: any) {
+			error = e?.toString() ?? "Update failed";
+		} finally {
+			updatingHash = null;
+		}
+	}
+
+	async function copyPerm(addr: string) {
+		await navigator.clipboard.writeText(`sisi://${addr}`);
+		copiedPerm = addr;
+		setTimeout(() => (copiedPerm = null), 2000);
 	}
 
 	function formatSize(bytes: number): string {
@@ -151,37 +176,27 @@
 						<div class="site-name">{site.name}</div>
 						<div class="site-meta">
 							<span
-								>{site.file_count} file{site.file_count !== 1
-									? "s"
-									: ""}</span
+								>{site.file_count} file{site.file_count !== 1 ? "s" : ""}</span
 							>
 							<span class="sep">·</span>
 							<span>{formatSize(site.total_size)}</span>
 							<span class="sep">·</span>
 							<span>{formatDate(site.updated_at)}</span>
 						</div>
+
+						<!-- Permanent address (pubkey) -->
 						<div class="hash-row">
-							<code class="hash">{site.hash.slice(0, 20)}…</code>
+							<span
+								style="font-size:10px;color:var(--text-3);font-family:var(--mono)"
+								>perm:</span
+							>
+							<code class="hash">{site.permanent_address.slice(0, 16)}…</code>
 							<button
 								class="copy-btn"
-								on:click={() => copy(site.hash)}
-								title="Copy full address"
+								on:click={() => copyPerm(site.permanent_address)}
+								title="Copy permanent address"
 							>
-								{#if copied === site.hash}
-									<svg
-										width="12"
-										height="12"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2.5"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										><polyline
-											points="20 6 9 17 4 12"
-										/></svg
-									>
-								{:else}
+								{#if copiedPerm === site.permanent_address}✓{:else}
 									<svg
 										width="12"
 										height="12"
@@ -191,13 +206,37 @@
 										stroke-width="2"
 										stroke-linecap="round"
 										stroke-linejoin="round"
-										><rect
-											x="9"
-											y="9"
-											width="13"
-											height="13"
-											rx="2"
-										/><path
+										><rect x="9" y="9" width="13" height="13" rx="2" /><path
+											d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+										/></svg
+									>
+								{/if}
+							</button>
+						</div>
+
+						<!-- Current version hash -->
+						<div class="hash-row">
+							<span
+								style="font-size:10px;color:var(--text-3);font-family:var(--mono)"
+								>hash:</span
+							>
+							<code class="hash">{site.hash.slice(0, 16)}…</code>
+							<button
+								class="copy-btn"
+								on:click={() => copy(site.hash)}
+								title="Copy version hash"
+							>
+								{#if copied === site.hash}✓{:else}
+									<svg
+										width="12"
+										height="12"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										><rect x="9" y="9" width="13" height="13" rx="2" /><path
 											d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
 										/></svg
 									>
@@ -211,6 +250,32 @@
 							<span class="seed-dot"></span>
 							seeding
 						</span>
+						<button
+							class="update-btn"
+							on:click={() => updateSite(site)}
+							disabled={updatingHash === site.hash}
+							title="Republish from a folder — increments version"
+						>
+							{#if updatingHash === site.hash}
+								<span class="btn-spinner"></span>
+							{:else}
+								<svg
+									width="12"
+									height="12"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									><polyline points="23 4 23 10 17 10" /><polyline
+										points="1 20 1 14 7 14"
+									/><path
+										d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
+									/></svg
+								>
+							{/if}
+						</button>
 						<button
 							class="unpin-btn"
 							on:click={() => unpin(site.hash)}
@@ -231,14 +296,11 @@
 									stroke-linejoin="round"
 									><polyline points="3 6 5 6 21 6" /><path
 										d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"
-									/><path d="M10 11v6" /><path
-										d="M14 11v6"
-									/><path
+									/><path d="M10 11v6" /><path d="M14 11v6" /><path
 										d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"
 									/></svg
 								>
 							{/if}
-							Unpin
 						</button>
 					</div>
 				</div>
@@ -501,5 +563,32 @@
 		border-radius: var(--radius);
 		font-size: 13px;
 		color: #92400e;
+	}
+
+	.update-btn {
+		display: flex;
+		align-items: center;
+		gap: 5px;
+		padding: 5px 10px;
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		background: none;
+		color: var(--text-2);
+		font-family: "DM Sans", sans-serif;
+		font-size: 12px;
+		cursor: pointer;
+		transition:
+			border-color 0.15s,
+			color 0.15s,
+			background 0.15s;
+	}
+	.update-btn:hover:not(:disabled) {
+		border-color: var(--accent);
+		color: var(--accent);
+		background: var(--accent-light);
+	}
+	.update-btn:disabled {
+		opacity: 0.5;
+		cursor: default;
 	}
 </style>

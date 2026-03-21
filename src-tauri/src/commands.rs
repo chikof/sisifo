@@ -3,17 +3,24 @@ use index::{IndexStore, SiteRecord, crawl_site};
 use node::signing_key;
 use publisher::{list_local_sites as publisher_list_local_sites, publish_dir};
 use resolver::resolve_to_gateway_url;
+use serde::Serialize;
 use sisi_daemon::DaemonClient;
 use sisi_daemon::ipc::DaemonCommand;
 use std::path::PathBuf;
 use tauri::Emitter;
-use tracing::{info, warn};
 use types::{NodeStats, SiteMeta};
 
 const GATEWAY_BASE: &str = "http://127.0.0.1:7777";
 
+#[derive(Serialize)]
+pub struct PublishResponse {
+    pub hash: String,
+    pub permanent_address: String,
+    pub version: u32,
+}
+
 #[tauri::command]
-pub async fn publish_site(path: String, name: String) -> Result<String, String> {
+pub async fn publish_site(path: String, name: String) -> Result<PublishResponse, String> {
     let key = signing_key()
         .await
         .map_err(|e: anyhow::Error| e.to_string())?;
@@ -23,21 +30,27 @@ pub async fn publish_site(path: String, name: String) -> Result<String, String> 
         .map_err(|e| e.to_string())?;
 
     let hash = result.site_hash.to_string();
+    let permanent_address = hex::encode(key.verifying_key().to_bytes());
+    let version = result.meta.version;
 
-    match DaemonClient::connect().await {
-        Some(mut client) => {
-            client
-                .send(DaemonCommand::Pin { hash: hash.clone() })
-                .await
-                .map_err(|e| e.to_string())?;
-            info!("handed seeding of {} to sisid", hash);
-        }
-        None => {
-            warn!("sisid not running, seeding only while app is open");
-        }
+    if let Some(mut client) = DaemonClient::connect().await {
+        client
+            .send(DaemonCommand::Pin { hash: hash.clone() })
+            .await
+            .ok();
     }
 
-    Ok(hash)
+    Ok(PublishResponse {
+        hash,
+        permanent_address,
+        version,
+    })
+}
+
+/// Republish an existing site from a folder — increments version, same permanent address
+#[tauri::command]
+pub async fn update_site(path: String, name: String) -> Result<PublishResponse, String> {
+    publish_site(path, name).await
 }
 
 #[tauri::command]

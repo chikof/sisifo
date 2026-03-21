@@ -43,6 +43,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::publish_site,
+            commands::update_site,
             commands::resolve_address,
             commands::list_local_sites,
             commands::node_stats,

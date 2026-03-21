@@ -39,8 +39,13 @@ pub async fn register_site(hash: &str, manifest: &SiteManifest) -> Result<()> {
     let handle = SisiNode::get()?;
     let mut index = load_index(&handle.data_dir).await?;
 
-    // Replace if hash already exists (re-publish case)
-    if let Some(entry) = index.sites.iter_mut().find(|e| e.hash == hash) {
+    let owner = hex::encode(&manifest.owner_pubkey);
+    if let Some(entry) = index
+        .sites
+        .iter_mut()
+        .find(|e| hex::encode(&e.manifest.owner_pubkey) == owner)
+    {
+        entry.hash = hash.to_string();
         entry.manifest = manifest.clone();
     } else {
         index.sites.push(PublishedEntry {

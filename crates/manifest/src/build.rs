@@ -40,4 +40,20 @@ impl ManifestBuilder {
             version: self.version,
         }
     }
+
+    pub fn build_unsigned_with_version(self, version: u32) -> SiteManifest {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        SiteManifest {
+            name: self.name,
+            files: self.files,
+            owner_pubkey: self.owner_pubkey,
+            signature: vec![],
+            created_at: now,
+            updated_at: now,
+            version,
+        }
+    }
 }

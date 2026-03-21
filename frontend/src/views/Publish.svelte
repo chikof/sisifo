@@ -1,12 +1,15 @@
 <script lang="ts">
 	import { invoke } from "@tauri-apps/api/core";
 
-	let selectedPath = "";
-	let siteName = "";
-	let publishing = false;
-	let publishedHash = "";
-	let error = "";
-	let copied = false;
+	let selectedPath = $state("");
+	let siteName = $state("");
+	let publishing = $state(false);
+	let publishedHash = $state("");
+	let error = $state("");
+	let copied = $state(false);
+	let copiedPerm = $state(false);
+	let permanentAddress = $state("");
+	let publishedVersion = $state(0);
 
 	async function pickFolder() {
 		const result = await invoke<string | null>("pick_folder");
@@ -21,12 +24,20 @@
 		publishing = true;
 		error = "";
 		publishedHash = "";
+		permanentAddress = "";
 
 		try {
-			publishedHash = await invoke<string>("publish_site", {
+			const result = await invoke<{
+				hash: string;
+				permanent_address: string;
+				version: number;
+			}>("publish_site", {
 				path: selectedPath,
 				name: siteName.trim(),
 			});
+			publishedHash = result.hash;
+			permanentAddress = result.permanent_address;
+			publishedVersion = result.version;
 		} catch (e: any) {
 			error = e?.toString() ?? "Publish failed";
 		} finally {
@@ -40,10 +51,17 @@
 		setTimeout(() => (copied = false), 2000);
 	}
 
+	async function copyPerm() {
+		await navigator.clipboard.writeText(`sisi://${permanentAddress}`);
+		copiedPerm = true;
+		setTimeout(() => (copiedPerm = false), 2000);
+	}
+
 	function reset() {
 		selectedPath = "";
 		siteName = "";
 		publishedHash = "";
+		permanentAddress = "";
 		error = "";
 	}
 </script>
@@ -52,8 +70,8 @@
 	<div class="header">
 		<h1>Publish a site</h1>
 		<p>
-			Select a folder containing your site's files. It will be hashed,
-			stored, and announced to the network.
+			Select a folder containing your site's files. It will be hashed, stored,
+			and announced to the network.
 		</p>
 	</div>
 
@@ -68,63 +86,103 @@
 					stroke="currentColor"
 					stroke-width="2"
 					stroke-linecap="round"
-					stroke-linejoin="round"
-					><polyline points="20 6 9 17 4 12" /></svg
+					stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg
 				>
 			</div>
 			<div class="success-body">
-				<p class="success-title">Published successfully</p>
+				<p class="success-title">Published - v{publishedVersion}</p>
 				<p class="success-name">{siteName}</p>
-				<div class="hash-row">
-					<code class="hash">{publishedHash}</code>
-					<button
-						class="copy-btn"
-						on:click={copy}
-						title="Copy address"
-					>
-						{#if copied}
-							<svg
-								width="13"
-								height="13"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="2.2"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								><polyline points="20 6 9 17 4 12" /></svg
-							>
-						{:else}
-							<svg
-								width="13"
-								height="13"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="2"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								><rect
-									x="9"
-									y="9"
+
+				<div class="addr-block">
+					<div class="addr-label">
+						Permanent address
+						<span class="addr-hint">
+							share this - always points to latest version
+						</span>
+					</div>
+					<div class="hash-row">
+						<code class="hash perm">{permanentAddress}</code>
+						<button
+							class="copy-btn"
+							onclick={copyPerm}
+							title="Copy permanent address"
+						>
+							{#if copiedPerm}
+								<svg
 									width="13"
 									height="13"
-									rx="2"
-								/><path
-									d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
-								/></svg
-							>
-						{/if}
-					</button>
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2.5"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									><polyline points="20 6 9 17 4 12" /></svg
+								>
+							{:else}
+								<svg
+									width="13"
+									height="13"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									><rect x="9" y="9" width="13" height="13" rx="2" /><path
+										d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+									/></svg
+								>
+							{/if}
+						</button>
+					</div>
 				</div>
+
+				<div class="addr-block">
+					<div class="addr-label">
+						Version hash
+						<span class="addr-hint">this specific version only</span>
+					</div>
+					<div class="hash-row">
+						<code class="hash">{publishedHash}</code>
+						<button class="copy-btn" onclick={copy} title="Copy version hash">
+							{#if copied}
+								<svg
+									width="13"
+									height="13"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2.5"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									><polyline points="20 6 9 17 4 12" /></svg
+								>
+							{:else}
+								<svg
+									width="13"
+									height="13"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									><rect x="9" y="9" width="13" height="13" rx="2" /><path
+										d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+									/></svg
+								>
+							{/if}
+						</button>
+					</div>
+				</div>
+
 				<p class="success-hint">
-					This address is permanent. Share it with anyone to let them
-					visit your site.
+					Republish anytime from the same folder - the permanent address will
+					automatically point to the new version.
 				</p>
 			</div>
-			<button class="secondary-btn" on:click={reset}
-				>Publish another</button
-			>
+			<button class="secondary-btn" onclick={reset}>Publish another</button>
 		</div>
 	{:else}
 		<div class="form">
@@ -133,11 +191,11 @@
 				<div class="folder-row">
 					<div
 						class="folder-display"
-						class:selected={!!selectedPath}
-						on:click={pickFolder}
+						class:selected={Boolean(selectedPath)}
+						onclick={pickFolder}
 						role="button"
 						tabindex="0"
-						on:keydown={(e) => e.key === "Enter" && pickFolder()}
+						onkeydown={(e) => e.key === "Enter" && pickFolder()}
 					>
 						{#if selectedPath}
 							<svg
@@ -170,14 +228,10 @@
 									d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
 								/></svg
 							>
-							<span class="folder-placeholder"
-								>Click to select a folder…</span
-							>
+							<span class="folder-placeholder">Click to select a folder…</span>
 						{/if}
 					</div>
-					<button class="browse-btn" on:click={pickFolder}
-						>Browse</button
-					>
+					<button class="browse-btn" onclick={pickFolder}>Browse</button>
 				</div>
 			</div>
 
@@ -191,9 +245,9 @@
 					maxlength="64"
 					spellcheck="false"
 				/>
-				<span class="field-hint"
-					>Human-readable label stored in the manifest.</span
-				>
+				<span class="field-hint">
+					Human-readable label stored in the manifest.
+				</span>
 			</div>
 
 			{#if error}
@@ -220,7 +274,7 @@
 
 			<button
 				class="primary-btn"
-				on:click={publish}
+				onclick={publish}
 				disabled={!selectedPath || !siteName.trim() || publishing}
 			>
 				{#if publishing}
@@ -236,22 +290,17 @@
 						stroke-width="2"
 						stroke-linecap="round"
 						stroke-linejoin="round"
-						><path
-							d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
-						/><polyline points="17 8 12 3 7 8" /><line
-							x1="12"
-							y1="3"
-							x2="12"
-							y2="15"
-						/></svg
+						><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline
+							points="17 8 12 3 7 8"
+						/><line x1="12" y1="3" x2="12" y2="15" /></svg
 					>
 					Publish to network
 				{/if}
 			</button>
 
 			<p class="disclaimer">
-				Files are hashed locally, then announced via the iroh DHT.
-				Nothing is uploaded to a central server.
+				Files are hashed locally, then announced via the iroh DHT. Nothing is
+				uploaded to a central server.
 			</p>
 		</div>
 	{/if}
@@ -541,6 +590,31 @@
 	}
 	.secondary-btn:hover {
 		border-color: var(--accent);
+		color: var(--accent);
+	}
+
+	.addr-block {
+		display: flex;
+		flex-direction: column;
+		gap: 5px;
+		margin-top: 10px;
+	}
+	.addr-label {
+		font-size: 12px;
+		font-weight: 500;
+		color: var(--text-2);
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.addr-hint {
+		font-size: 11px;
+		color: var(--text-3);
+		font-weight: 400;
+	}
+	.hash.perm {
+		background: var(--accent-light);
+		border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
 		color: var(--accent);
 	}
 </style>
