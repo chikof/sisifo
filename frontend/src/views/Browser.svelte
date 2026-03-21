@@ -1,407 +1,404 @@
 <script lang="ts">
-	import { invoke } from "@tauri-apps/api/core";
-	import { listen } from "@tauri-apps/api/event";
-	import { onMount, onDestroy } from "svelte";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { onMount, onDestroy } from "svelte";
 
-	interface Tab {
-		id: string;
-		title: string;
-		address: string;
-		gatewayUrl: string;
-		inputValue: string;
-		loading: boolean;
-		error: string;
-		history: string[];
-		historyIndex: number;
-		groupId: string | null;
-		iconUrl: string | null;
+interface Tab {
+	id: string;
+	title: string;
+	address: string;
+	gatewayUrl: string;
+	inputValue: string;
+	loading: boolean;
+	error: string;
+	history: string[];
+	historyIndex: number;
+	groupId: string | null;
+	iconUrl: string | null;
+}
+
+interface TabGroup {
+	id: string;
+	name: string;
+	color: string;
+	collapsed: boolean;
+}
+
+let {
+	tabs,
+	activeTabId,
+	groups,
+}: { tabs: Tab[]; activeTabId: string; groups: TabGroup[] } = $props();
+
+// Drag state
+let dragTabId = $state<string | null>(null);
+
+let dragOverTabId = $state<string | null>(null);
+let activeTab = $state<Tab>();
+
+// Context menu
+let ctxMenu: { x: number; y: number; tabId: string } | null = $state(null);
+
+// Group creation modal
+let showGroupModal = $state(false);
+let groupModalTabId: string | null = $state(null);
+let newGroupName = $state("");
+let newGroupColor = $state("#0d9488");
+
+// Gossip bridge
+let gossipUnlisten: (() => void) | null = null;
+let activeIframe: HTMLIFrameElement | null = $state(null);
+
+const GROUP_COLORS = [
+	"#0d9488",
+	"#0369a1",
+	"#7c3aed",
+	"#be185d",
+	"#c2410c",
+	"#15803d",
+	"#b45309",
+	"#4338ca",
+];
+
+$effect(() => {
+	activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0];
+});
+
+function uid() {
+	return Math.random().toString(36).slice(2, 9);
+}
+
+function newTab(address = "", groupId: string | null = null): Tab {
+	return {
+		id: uid(),
+		title: address ? address.slice(0, 20) + "…" : "New tab",
+		address,
+		gatewayUrl: "",
+		inputValue: address,
+		loading: false,
+		error: "",
+		history: address ? [address] : [],
+		historyIndex: address ? 0 : -1,
+		groupId,
+		iconUrl: null,
+	};
+}
+
+function openTab(address = "", groupId: string | null = null) {
+	const tab = newTab(address, groupId);
+	tabs = [...tabs, tab];
+	activeTabId = tab.id;
+	if (address) navigateTab(tab.id, address);
+}
+
+function closeTab(id: string) {
+	if (tabs.length === 1) {
+		// Reset to blank instead of closing last tab
+		tabs = [newTab()];
+		activeTabId = tabs[0].id;
+		return;
 	}
-
-	interface TabGroup {
-		id: string;
-		name: string;
-		color: string;
-		collapsed: boolean;
+	const idx = tabs.findIndex((t) => t.id === id);
+	tabs = tabs.filter((t) => t.id !== id);
+	if (activeTabId === id) {
+		activeTabId = tabs[Math.max(0, idx - 1)].id;
 	}
+}
 
-	let {
-		tabs,
-		activeTabId,
-		groups,
-	}: { tabs: Tab[]; activeTabId: string; groups: TabGroup[] } = $props();
+function duplicateTab(id: string) {
+	const src = tabs.find((t) => t.id === id);
+	if (!src) return;
+	const tab = newTab(src.address, src.groupId);
+	tab.gatewayUrl = src.gatewayUrl;
+	tab.title = src.title;
+	const idx = tabs.findIndex((t) => t.id === id);
+	tabs = [...tabs.slice(0, idx + 1), tab, ...tabs.slice(idx + 1)];
+	activeTabId = tab.id;
+}
 
-	// Drag state
-	let dragTabId = $state<string | null>(null);
+function updateTab(id: string, patch: Partial<Tab>) {
+	tabs = tabs.map((t) => (t.id === id ? { ...t, ...patch } : t));
+}
 
-	let dragOverTabId = $state<string | null>(null);
-	let activeTab = $state<Tab>();
+function sanitize(v: string) {
+	return v.replace(/^sisi:\/\//, "").trim();
+}
 
-	// Context menu
-	let ctxMenu: { x: number; y: number; tabId: string } | null = null;
+async function navigateTab(id: string, addr?: string) {
+	const tab = tabs.find((t) => t.id === id);
+	if (!tab) return;
+	const target = sanitize(addr ?? tab.inputValue);
+	if (!target) return;
 
-	// Group creation modal
-	let showGroupModal = false;
-	let groupModalTabId: string | null = null;
-	let newGroupName = "";
-	let newGroupColor = "#0d9488";
-
-	// Gossip bridge
-	let gossipUnlisten: (() => void) | null = null;
-	let activeIframe: HTMLIFrameElement | null = null;
-
-	const GROUP_COLORS = [
-		"#0d9488",
-		"#0369a1",
-		"#7c3aed",
-		"#be185d",
-		"#c2410c",
-		"#15803d",
-		"#b45309",
-		"#4338ca",
-	];
-
-	$effect(() => {
-		activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0];
+	updateTab(id, {
+		loading: true,
+		error: "",
+		title: target.slice(0, 12) + "…",
 	});
 
-	function uid() {
-		return Math.random().toString(36).slice(2, 9);
-	}
-
-	function newTab(address = "", groupId: string | null = null): Tab {
-		return {
-			id: uid(),
-			title: address ? address.slice(0, 20) + "…" : "New tab",
-			address,
-			gatewayUrl: "",
-			inputValue: address,
-			loading: false,
-			error: "",
-			history: address ? [address] : [],
-			historyIndex: address ? 0 : -1,
-			groupId,
-			iconUrl: null,
-		};
-	}
-
-	function openTab(address = "", groupId: string | null = null) {
-		const tab = newTab(address, groupId);
-		tabs = [...tabs, tab];
-		activeTabId = tab.id;
-		if (address) navigateTab(tab.id, address);
-	}
-
-	function closeTab(id: string) {
-		if (tabs.length === 1) {
-			// Reset to blank instead of closing last tab
-			tabs = [newTab()];
-			activeTabId = tabs[0].id;
-			return;
-		}
-		const idx = tabs.findIndex((t) => t.id === id);
-		tabs = tabs.filter((t) => t.id !== id);
-		if (activeTabId === id) {
-			activeTabId = tabs[Math.max(0, idx - 1)].id;
-		}
-	}
-
-	function duplicateTab(id: string) {
-		const src = tabs.find((t) => t.id === id);
-		if (!src) return;
-		const tab = newTab(src.address, src.groupId);
-		tab.gatewayUrl = src.gatewayUrl;
-		tab.title = src.title;
-		const idx = tabs.findIndex((t) => t.id === id);
-		tabs = [...tabs.slice(0, idx + 1), tab, ...tabs.slice(idx + 1)];
-		activeTabId = tab.id;
-	}
-
-	function updateTab(id: string, patch: Partial<Tab>) {
-		tabs = tabs.map((t) => (t.id === id ? { ...t, ...patch } : t));
-	}
-
-	function sanitize(v: string) {
-		return v.replace(/^sisi:\/\//, "").trim();
-	}
-
-	async function navigateTab(id: string, addr?: string) {
-		const tab = tabs.find((t) => t.id === id);
-		if (!tab) return;
-		const target = sanitize(addr ?? tab.inputValue);
-		if (!target) return;
+	try {
+		const url = await invoke<string>("resolve_address", {
+			addr: target,
+		});
+		const title = target.slice(0, 20) + (target.length > 20 ? "…" : "");
+		const history = [...tab.history.slice(0, tab.historyIndex + 1), target];
 
 		updateTab(id, {
-			loading: true,
-			error: "",
-			title: target.slice(0, 12) + "…",
+			gatewayUrl: url,
+			address: target,
+			inputValue: target,
+			title,
+			loading: false,
+			history,
+			historyIndex: history.length - 1,
 		});
 
 		try {
-			const url = await invoke<string>("resolve_address", {
-				addr: target,
-			});
-			const title = target.slice(0, 20) + (target.length > 20 ? "…" : "");
-			const history = [
-				...tab.history.slice(0, tab.historyIndex + 1),
-				target,
-			];
+			const record = await invoke<{
+				name: string;
+				icon_url: string | null;
+			} | null>("index_site", { hash: target });
 
-			updateTab(id, {
-				gatewayUrl: url,
-				address: target,
-				inputValue: target,
-				title,
-				loading: false,
-				history,
-				historyIndex: history.length - 1,
-			});
-
-			try {
-				const record = await invoke<{
-					name: string;
-					icon_url: string | null;
-				} | null>("index_site", { hash: target });
-
-				if (record?.name) {
-					updateTab(id, {
-						title: record.name,
-						iconUrl: record.icon_url ?? null,
-					});
-				}
-			} catch {}
-		} catch (e: any) {
-			updateTab(id, {
-				error: e?.toString() ?? "Failed",
-				loading: false,
-				gatewayUrl: "",
-			});
-		}
-	}
-
-	function goBack(id: string) {
-		const tab = tabs.find((t) => t.id === id);
-		if (!tab || tab.historyIndex <= 0) return;
-		navigateTab(id, tab.history[tab.historyIndex - 1]);
-	}
-
-	function goForward(id: string) {
-		const tab = tabs.find((t) => t.id === id);
-		if (!tab || tab.historyIndex >= tab.history.length - 1) return;
-		navigateTab(id, tab.history[tab.historyIndex + 1]);
-	}
-
-	function onDragStart(e: DragEvent, id: string) {
-		dragTabId = id;
-		e.dataTransfer!.effectAllowed = "move";
-	}
-
-	function onDragOver(e: DragEvent, id: string) {
-		e.preventDefault();
-		dragOverTabId = id;
-	}
-
-	function onDrop(e: DragEvent, targetId: string) {
-		e.preventDefault();
-		if (!dragTabId || dragTabId === targetId) {
-			dragTabId = null;
-			dragOverTabId = null;
-			return;
-		}
-		const from = tabs.findIndex((t) => t.id === dragTabId);
-		const to = tabs.findIndex((t) => t.id === targetId);
-		const reordered = [...tabs];
-		const [moved] = reordered.splice(from, 1);
-		reordered.splice(to, 0, moved);
-		tabs = reordered;
-		dragTabId = null;
-		dragOverTabId = null;
-	}
-
-	function onDragEnd() {
-		dragTabId = null;
-		dragOverTabId = null;
-	}
-
-	function showCtxMenu(e: MouseEvent, tabId: string) {
-		e.preventDefault();
-		ctxMenu = { x: e.clientX, y: e.clientY, tabId };
-	}
-
-	function closeCtxMenu() {
-		ctxMenu = null;
-	}
-
-	function ctxAction(action: string) {
-		if (!ctxMenu) return;
-		const id = ctxMenu.tabId;
-		closeCtxMenu();
-		switch (action) {
-			case "close":
-				closeTab(id);
-				break;
-			case "duplicate":
-				duplicateTab(id);
-				break;
-			case "new-tab":
-				openTab();
-				break;
-			case "new-group":
-				groupModalTabId = id;
-				showGroupModal = true;
-				break;
-			case "remove-group":
-				updateTab(id, { groupId: null });
-				break;
-		}
-	}
-
-	function createGroup() {
-		if (!newGroupName.trim()) return;
-		const group: TabGroup = {
-			id: uid(),
-			name: newGroupName.trim(),
-			color: newGroupColor,
-			collapsed: false,
-		};
-		groups = [...groups, group];
-		if (groupModalTabId) updateTab(groupModalTabId, { groupId: group.id });
-		showGroupModal = false;
-		newGroupName = "";
-		groupModalTabId = null;
-	}
-
-	function toggleGroupCollapse(groupId: string) {
-		groups = groups.map((g) =>
-			g.id === groupId ? { ...g, collapsed: !g.collapsed } : g,
-		);
-		// If active tab is in collapsed group, switch to first visible tab
-		const activeGroup = groups.find((g) => g.id === groupId);
-		if (activeGroup?.collapsed) {
-			const tab = tabs.find((t) => t.id === activeTabId);
-			if (tab?.groupId === groupId) {
-				const visible = tabs.find(
-					(t) =>
-						!t.groupId ||
-						!groups.find((g) => g.id === t.groupId)?.collapsed,
-				);
-				if (visible) activeTabId = visible.id;
-			}
-		}
-	}
-
-	function groupColor(groupId: string | null) {
-		if (!groupId) return null;
-		return groups.find((g) => g.id === groupId)?.color ?? null;
-	}
-
-	function groupName(groupId: string | null) {
-		if (!groupId) return null;
-		return groups.find((g) => g.id === groupId)?.name ?? null;
-	}
-
-	let orderedTabs = $state<(Tab | TabGroup)[]>();
-
-	// Tabs ordered: group tabs cluster together, ungrouped tabs in between
-	$effect(() => {
-		orderedTabs = (() => {
-			const result: (Tab | TabGroup)[] = [];
-			const seen = new Set<string>();
-			for (const tab of tabs) {
-				if (tab.groupId && !seen.has(tab.groupId)) {
-					const group = groups.find((g) => g.id === tab.groupId);
-					if (group) {
-						result.push(group);
-						seen.add(tab.groupId);
-					}
-				}
-				const group = tab.groupId
-					? groups.find((g) => g.id === tab.groupId)
-					: null;
-				if (!group?.collapsed) result.push(tab);
-			}
-			return result;
-		})();
-	});
-
-	async function handleBridgeMessage(event: MessageEvent) {
-		if (
-			!event.origin.startsWith("http://localhost:7777") &&
-			!event.origin.startsWith("http://127.0.0.1:7777")
-		)
-			return;
-		const { id, cmd, args } = event.data ?? {};
-		if (!id || !cmd) return;
-
-		const reply = (result?: any, err?: string) => {
-			(event.source as WindowProxy)?.postMessage(
-				err ? { id, error: err } : { id, result },
-				{ targetOrigin: event.origin },
-			);
-		};
-
-		if (cmd === "subscribe_topic") {
-			gossipUnlisten?.();
-			try {
-				gossipUnlisten = await listen(`gossip:${args?.topic}`, (e) => {
-					activeIframe?.contentWindow?.postMessage(
-						{
-							tauriEvent: `gossip:${args?.topic}`,
-							payload: e.payload,
-						},
-						event.origin,
-					);
+			if (record?.name) {
+				updateTab(id, {
+					title: record.name,
+					iconUrl: record.icon_url ?? null,
 				});
-				reply(null);
-			} catch (e: any) {
-				reply(undefined, String(e));
 			}
-			return;
-		}
+		} catch {}
+	} catch (e: any) {
+		updateTab(id, {
+			error: e?.toString() ?? "Failed",
+			loading: false,
+			gatewayUrl: "",
+		});
+	}
+}
 
+function goBack(id: string) {
+	const tab = tabs.find((t) => t.id === id);
+	if (!tab || tab.historyIndex <= 0) return;
+	navigateTab(id, tab.history[tab.historyIndex - 1]);
+}
+
+function goForward(id: string) {
+	const tab = tabs.find((t) => t.id === id);
+	if (!tab || tab.historyIndex >= tab.history.length - 1) return;
+	navigateTab(id, tab.history[tab.historyIndex + 1]);
+}
+
+function onDragStart(e: DragEvent, id: string) {
+	dragTabId = id;
+	e.dataTransfer!.effectAllowed = "move";
+}
+
+function onDragOver(e: DragEvent, id: string) {
+	e.preventDefault();
+	dragOverTabId = id;
+}
+
+function onDrop(e: DragEvent, targetId: string) {
+	e.preventDefault();
+	if (!dragTabId || dragTabId === targetId) {
+		dragTabId = null;
+		dragOverTabId = null;
+		return;
+	}
+	const from = tabs.findIndex((t) => t.id === dragTabId);
+	const to = tabs.findIndex((t) => t.id === targetId);
+	const reordered = [...tabs];
+	const [moved] = reordered.splice(from, 1);
+	reordered.splice(to, 0, moved);
+	tabs = reordered;
+	dragTabId = null;
+	dragOverTabId = null;
+}
+
+function onDragEnd() {
+	dragTabId = null;
+	dragOverTabId = null;
+}
+
+function showCtxMenu(e: MouseEvent, tabId: string) {
+	e.preventDefault();
+	ctxMenu = { x: e.clientX, y: e.clientY, tabId };
+}
+
+function closeCtxMenu() {
+	ctxMenu = null;
+}
+
+function ctxAction(action: string) {
+	if (!ctxMenu) return;
+	const id = ctxMenu.tabId;
+	closeCtxMenu();
+	switch (action) {
+		case "close":
+			closeTab(id);
+			break;
+		case "duplicate":
+			duplicateTab(id);
+			break;
+		case "new-tab":
+			openTab();
+			break;
+		case "new-group":
+			groupModalTabId = id;
+			showGroupModal = true;
+			break;
+		case "remove-group":
+			updateTab(id, { groupId: null });
+			break;
+	}
+}
+
+function createGroup() {
+	if (!newGroupName.trim()) return;
+	const group: TabGroup = {
+		id: uid(),
+		name: newGroupName.trim(),
+		color: newGroupColor,
+		collapsed: false,
+	};
+	groups = [...groups, group];
+	if (groupModalTabId) updateTab(groupModalTabId, { groupId: group.id });
+	showGroupModal = false;
+	newGroupName = "";
+	groupModalTabId = null;
+}
+
+function toggleGroupCollapse(groupId: string) {
+	groups = groups.map((g) =>
+		g.id === groupId ? { ...g, collapsed: !g.collapsed } : g,
+	);
+	// If active tab is in collapsed group, switch to first visible tab
+	const activeGroup = groups.find((g) => g.id === groupId);
+	if (activeGroup?.collapsed) {
+		const tab = tabs.find((t) => t.id === activeTabId);
+		if (tab?.groupId === groupId) {
+			const visible = tabs.find(
+				(t) =>
+					!t.groupId ||
+					!groups.find((g) => g.id === t.groupId)?.collapsed,
+			);
+			if (visible) activeTabId = visible.id;
+		}
+	}
+}
+
+function groupColor(groupId: string | null) {
+	if (!groupId) return null;
+	return groups.find((g) => g.id === groupId)?.color ?? null;
+}
+
+function groupName(groupId: string | null) {
+	if (!groupId) return null;
+	return groups.find((g) => g.id === groupId)?.name ?? null;
+}
+
+let orderedTabs = $state<(Tab | TabGroup)[]>();
+
+// Tabs ordered: group tabs cluster together, ungrouped tabs in between
+$effect(() => {
+	orderedTabs = (() => {
+		const result: (Tab | TabGroup)[] = [];
+		const seen = new Set<string>();
+		for (const tab of tabs) {
+			if (tab.groupId && !seen.has(tab.groupId)) {
+				const group = groups.find((g) => g.id === tab.groupId);
+				if (group) {
+					result.push(group);
+					seen.add(tab.groupId);
+				}
+			}
+			const group = tab.groupId
+				? groups.find((g) => g.id === tab.groupId)
+				: null;
+			if (!group?.collapsed) result.push(tab);
+		}
+		return result;
+	})();
+});
+
+async function handleBridgeMessage(event: MessageEvent) {
+	if (
+		!event.origin.startsWith("http://localhost:7777") &&
+		!event.origin.startsWith("http://127.0.0.1:7777")
+	)
+		return;
+	const { id, cmd, args } = event.data ?? {};
+	if (!id || !cmd) return;
+
+	const reply = (result?: any, err?: string) => {
+		(event.source as WindowProxy)?.postMessage(
+			err ? { id, error: err } : { id, result },
+			{ targetOrigin: event.origin },
+		);
+	};
+
+	if (cmd === "subscribe_topic") {
+		gossipUnlisten?.();
 		try {
-			reply(await invoke(cmd, args ?? {}));
+			gossipUnlisten = await listen(`gossip:${args?.topic}`, (e) => {
+				activeIframe?.contentWindow?.postMessage(
+					{
+						tauriEvent: `gossip:${args?.topic}`,
+						payload: e.payload,
+					},
+					event.origin,
+				);
+			});
+			reply(null);
 		} catch (e: any) {
 			reply(undefined, String(e));
 		}
+		return;
 	}
 
-	onMount(() => {
-		window.addEventListener("message", handleBridgeMessage);
-	});
-	onDestroy(() => {
-		window.removeEventListener("message", handleBridgeMessage);
-		gossipUnlisten?.();
-	});
+	try {
+		reply(await invoke(cmd, args ?? {}));
+	} catch (e: any) {
+		reply(undefined, String(e));
+	}
+}
 
-	// Keyboard shortcuts
-	function onWindowKeydown(e: KeyboardEvent) {
-		if (e.ctrlKey || e.metaKey) {
-			if (e.key === "t") {
-				e.preventDefault();
-				openTab();
-			}
-			if (e.key === "w") {
-				e.preventDefault();
-				closeTab(activeTabId);
-			}
-			if (e.key === "Tab") {
-				e.preventDefault();
-				const visibleTabs = tabs.filter((t) => {
-					const g = t.groupId
-						? groups.find((g) => g.id === t.groupId)
-						: null;
-					return !g?.collapsed;
-				});
-				const idx = visibleTabs.findIndex((t) => t.id === activeTabId);
-				const next = e.shiftKey
-					? visibleTabs[
-							(idx - 1 + visibleTabs.length) % visibleTabs.length
-						]
-					: visibleTabs[(idx + 1) % visibleTabs.length];
-				if (next) activeTabId = next.id;
-			}
+onMount(() => {
+	window.addEventListener("message", handleBridgeMessage);
+});
+onDestroy(() => {
+	window.removeEventListener("message", handleBridgeMessage);
+	gossipUnlisten?.();
+});
+
+// Keyboard shortcuts
+function onWindowKeydown(e: KeyboardEvent) {
+	if (e.ctrlKey || e.metaKey) {
+		if (e.key === "t") {
+			e.preventDefault();
+			openTab();
+		}
+		if (e.key === "w") {
+			e.preventDefault();
+			closeTab(activeTabId);
+		}
+		if (e.key === "Tab") {
+			e.preventDefault();
+			const visibleTabs = tabs.filter((t) => {
+				const g = t.groupId
+					? groups.find((g) => g.id === t.groupId)
+					: null;
+				return !g?.collapsed;
+			});
+			const idx = visibleTabs.findIndex((t) => t.id === activeTabId);
+			const next = e.shiftKey
+				? visibleTabs[
+						(idx - 1 + visibleTabs.length) % visibleTabs.length
+					]
+				: visibleTabs[(idx + 1) % visibleTabs.length];
+			if (next) activeTabId = next.id;
 		}
 	}
+}
 </script>
 
 <svelte:window on:keydown={onWindowKeydown} on:click={closeCtxMenu} />
@@ -920,6 +917,7 @@
 		display: flex;
 		flex-direction: column;
 		height: 100%;
+		min-height: 0;
 		background: var(--surface-2);
 	}
 
@@ -1235,6 +1233,7 @@
 	/* ── WEBVIEW ── */
 	.webview-area {
 		flex: 1;
+		min-height: 0;
 		position: relative;
 		overflow: hidden;
 	}

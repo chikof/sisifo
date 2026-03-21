@@ -27,6 +27,7 @@ types = { path = "../crates/types" }
 sisi-daemon = { path = "../crates/sisi-daemon" }
 gossip = { path = "../crates/gossip" }
 index = { path = "../crates/index" }
+names = { path = "../crates/names" }
 tokio = { workspace = true }
 serde = { workspace = true }
 ed25519-dalek = { workspace = true }

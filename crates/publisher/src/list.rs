@@ -11,6 +11,7 @@ struct PublishedIndex {
 struct PublishedEntry {
     hash: String,
     manifest: SiteManifest,
+    scope: Option<String>,
 }
 
 fn index_path(data_dir: &std::path::Path) -> PathBuf {
@@ -35,22 +36,23 @@ async fn save_index(data_dir: &std::path::Path, index: &PublishedIndex) -> Resul
 }
 
 /// Called by publish_dir after a successful publish to register the site
-pub async fn register_site(hash: &str, manifest: &SiteManifest) -> Result<()> {
+pub async fn register_site(hash: &str, manifest: &SiteManifest, scope: Option<&str>) -> Result<()> {
     let handle = SisiNode::get()?;
     let mut index = load_index(&handle.data_dir).await?;
 
     let owner = hex::encode(&manifest.owner_pubkey);
-    if let Some(entry) = index
-        .sites
-        .iter_mut()
-        .find(|e| hex::encode(&e.manifest.owner_pubkey) == owner)
-    {
+    let scope_str = scope.unwrap_or("default");
+
+    if let Some(entry) = index.sites.iter_mut().find(|e| {
+        hex::encode(&e.manifest.owner_pubkey) == owner && e.scope.as_deref() == Some(scope_str)
+    }) {
         entry.hash = hash.to_string();
         entry.manifest = manifest.clone();
     } else {
         index.sites.push(PublishedEntry {
             hash: hash.to_string(),
             manifest: manifest.clone(),
+            scope: Some(scope_str.to_string()),
         });
     }
 

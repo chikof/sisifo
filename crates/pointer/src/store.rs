@@ -3,14 +3,73 @@ use std::{collections::HashMap, path::PathBuf};
 use anyhow::{Result, anyhow};
 use node::SisiNode;
 use serde::{Deserialize, Serialize};
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::{SignedPointer, verify_pointer};
 
+/// Composite key used internally to index pointers.
+///
+/// Serialised as a JSON object so it round-trips through
+/// `serde_json::to_vec_pretty` without ambiguity.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+struct PointerKey {
+    pubkey: String,
+    /// Topic scope, e.g. `"forum"` or `"blog"`.  Empty string = default site.
+    scope: String,
+}
+
+impl PointerKey {
+    fn new(pubkey: &str, scope: Option<&str>) -> Self {
+        PointerKey {
+            pubkey: pubkey.to_string(),
+            scope: scope.unwrap_or("").to_string(),
+        }
+    }
+}
+
+/// Current on-disk format.
 #[derive(Serialize, Deserialize, Default)]
-pub struct PointerStore {
+struct StoreDisk {
     pointers: HashMap<String, SignedPointer>,
-    #[serde(skip)]
+}
+
+// serde_json requires map keys to be strings, so we encode PointerKey as
+// `"<pubkey>:<scope>"` for the JSON map key.
+fn key_to_str(k: &PointerKey) -> String {
+    format!("{}:{}", k.pubkey, k.scope)
+}
+
+fn str_to_key(s: &str) -> PointerKey {
+    // New format: "<64-char-pubkey>:<scope>" where scope may be empty.
+    // So minimum new-format length is 65 (64 + colon).
+    // Old format: exactly 64 chars with no colon.
+    if s.len() == 64 && !s.contains(':') {
+        // Legacy entry — treat as default (unscoped) site.
+        return PointerKey {
+            pubkey: s.to_string(),
+            scope: String::new(),
+        };
+    }
+    // New format: pubkey is always the first 64 chars, colon at index 64.
+    if s.len() >= 65 && s.as_bytes()[64] == b':' {
+        return PointerKey {
+            pubkey: s[..64].to_string(),
+            scope: s[65..].to_string(), // empty string when unscoped
+        };
+    }
+    // Unrecognised — treat whole string as pubkey with empty scope.
+    warn!(
+        "unrecognised pointer key format (len {}), treating as unscoped",
+        s.len()
+    );
+    PointerKey {
+        pubkey: s.to_string(),
+        scope: String::new(),
+    }
+}
+
+pub struct PointerStore {
+    pointers: HashMap<PointerKey, SignedPointer>,
     path: PathBuf,
 }
 
@@ -18,72 +77,129 @@ impl PointerStore {
     pub async fn load() -> Result<Self> {
         let path = store_path()?;
         if !path.exists() {
+            tracing::info!("pointer store not found at {:?}, starting fresh", path);
             return Ok(PointerStore {
                 pointers: HashMap::new(),
                 path,
             });
         }
-        let bytes = tokio::fs::read(&path).await?;
-        let mut store: PointerStore = serde_json::from_slice(&bytes)?;
-        store.path = path;
 
-        Ok(store)
+        let bytes = tokio::fs::read(&path).await?;
+
+        let disk: StoreDisk = serde_json::from_slice(&bytes).map_err(|e| {
+            anyhow!(
+                "failed to parse pointers.json — \
+                 delete it to reset: {e}"
+            )
+        })?;
+
+        let pointers: HashMap<PointerKey, SignedPointer> = disk
+            .pointers
+            .into_iter()
+            .map(|(k, v)| (str_to_key(&k), v))
+            .collect();
+
+        tracing::info!(
+            "pointer store loaded: {} entries from {:?}",
+            pointers.len(),
+            path
+        );
+        for (k, v) in &pointers {
+            tracing::debug!(
+                "  pointer: pubkey={} scope={:?} hash={}",
+                &k.pubkey[..8.min(k.pubkey.len())],
+                k.scope,
+                &v.hash[..12.min(v.hash.len())]
+            );
+        }
+
+        Ok(PointerStore { pointers, path })
     }
 
-    /// Only accepted if version is strictly higher than existing one
+    /// Insert or update a pointer, accepting only strictly higher versions.
+    ///
+    /// Verifies the signature — use this for pointers received over the network.
     pub async fn upsert(&mut self, pointer: SignedPointer) -> Result<()> {
         verify_pointer(&pointer)?;
+        self.upsert_trusted(pointer).await
+    }
+
+    /// Insert or update a pointer without re-verifying the signature.
+    ///
+    /// Use this only for pointers we created ourselves or loaded from the
+    /// trusted local file (which was already verified when it was first stored).
+    pub async fn upsert_trusted(&mut self, pointer: SignedPointer) -> Result<()> {
+        let key = PointerKey::new(&pointer.pubkey, pointer.scope.as_deref());
 
         let should_update = self
             .pointers
-            .get(&pointer.pubkey)
+            .get(&key)
             .map(|ex| pointer.version > ex.version)
             .unwrap_or(true);
 
         if should_update {
             info!(
-                "pointer updated: {} → v{} → {}",
-                &pointer.pubkey[..8],
-                pointer.version,
-                &pointer.hash[..12]
+                pubkey = %&pointer.pubkey[..8],
+                scope  = %pointer.scope.as_deref().unwrap_or("<default>"),
+                version = pointer.version,
+                hash = %&pointer.hash[..12],
+                "pointer updated"
             );
-            self.pointers.insert(pointer.pubkey.clone(), pointer);
+            self.pointers.insert(key, pointer);
             self.save().await?;
         }
 
         Ok(())
     }
 
-    /// Get a SignedPointer by its pubkey
+    /// Get the pointer for a pubkey + optional scope.
+    ///
+    /// `scope = None` returns the default (unscoped) site pointer.
     pub fn get(&self, pubkey: &str) -> Option<&SignedPointer> {
-        self.pointers.get(pubkey)
+        self.get_scoped(pubkey, None)
     }
 
-    #[allow(unused)]
-    pub fn find_by_name(&self, name: &str, owner_pubkey: &str) -> Option<&SignedPointer> {
-        self.pointers.get(owner_pubkey)
+    pub fn get_scoped(&self, pubkey: &str, scope: Option<&str>) -> Option<&SignedPointer> {
+        let key = PointerKey::new(pubkey, scope);
+        let result = self.pointers.get(&key);
+        if result.is_none() {
+            tracing::debug!(
+                "pointer lookup miss: pubkey={} scope={:?} (store has {} entries)",
+                &pubkey[..8.min(pubkey.len())],
+                scope,
+                self.pointers.len()
+            );
+        }
+        result
     }
 
-    pub fn last_mine(&self, owner_pubkey: &str) -> Vec<&SignedPointer> {
-        // Each pubkey has one pointer (one site per id)
-        // TODO: support multiple sites pey key via name-scope pointers
+    /// All pointers owned by a pubkey (across all scopes).
+    pub fn all_for_pubkey(&self, pubkey: &str) -> Vec<&SignedPointer> {
         self.pointers
-            .values()
-            .filter(|p| p.pubkey == owner_pubkey)
+            .iter()
+            .filter(|(k, _)| k.pubkey == pubkey)
+            .map(|(_, v)| v)
             .collect()
     }
 
-    pub fn next_version(&self, pubkey: &str) -> u32 {
+    /// Next version number for a (pubkey, scope) pair.
+    pub fn next_version(&self, pubkey: &str, scope: Option<&str>) -> u32 {
         self.pointers
-            .get(pubkey)
+            .get(&PointerKey::new(pubkey, scope))
             .map(|p| p.version + 1)
             .unwrap_or(1)
     }
 
     async fn save(&self) -> Result<()> {
         tokio::fs::create_dir_all(self.path.parent().unwrap()).await?;
-        tokio::fs::write(&self.path, serde_json::to_vec_pretty(self)?).await?;
-
+        let disk = StoreDisk {
+            pointers: self
+                .pointers
+                .iter()
+                .map(|(k, v)| (key_to_str(k), v.clone()))
+                .collect(),
+        };
+        tokio::fs::write(&self.path, serde_json::to_vec_pretty(&disk)?).await?;
         Ok(())
     }
 }

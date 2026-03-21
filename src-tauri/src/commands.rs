@@ -1,5 +1,7 @@
 use gossip::{GossipMessage, MessageKind, MessageStore, PersonalBlockList, get_gossip};
 use index::{IndexStore, SiteRecord, crawl_site};
+use names::gossip_handler::{broadcast_name_claim, broadcast_name_release};
+use names::{NameClaim, NameStore, handle_name_gossip_message};
 use node::signing_key;
 use publisher::{list_local_sites as publisher_list_local_sites, publish_dir};
 use resolver::resolve_to_gateway_url;
@@ -17,21 +19,43 @@ pub struct PublishResponse {
     pub hash: String,
     pub permanent_address: String,
     pub version: u32,
+    /// The scope the site was published under, if any.
+    pub scope: Option<String>,
+    /// The human-readable name that was claimed, if any.
+    pub claimed_name: Option<String>,
 }
 
+/// Publish a new site from a local folder.
 #[tauri::command]
-pub async fn publish_site(path: String, name: String) -> Result<PublishResponse, String> {
+pub async fn publish_site(
+    path: String,
+    name: String,
+    scope: Option<String>,
+    human_name: Option<String>,
+) -> Result<PublishResponse, String> {
     let key = signing_key()
         .await
         .map_err(|e: anyhow::Error| e.to_string())?;
 
-    let result = publish_dir(&PathBuf::from(path), &name, &key)
-        .await
-        .map_err(|e| e.to_string())?;
+    let result = publish_dir(
+        &PathBuf::from(path),
+        &name,
+        &key,
+        scope.as_deref(),
+        human_name.as_deref(),
+    )
+    .await
+    .map_err(|e| e.to_string())?;
 
     let hash = result.site_hash.to_string();
-    let permanent_address = hex::encode(key.verifying_key().to_bytes());
-    let version = result.meta.version;
+
+    if let Some(ref claim) = result.name_claim
+        && let Ok(gossip) = get_gossip()
+    {
+        broadcast_name_claim(&gossip, &key, claim)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
 
     if let Some(mut client) = DaemonClient::connect().await {
         client
@@ -42,15 +66,101 @@ pub async fn publish_site(path: String, name: String) -> Result<PublishResponse,
 
     Ok(PublishResponse {
         hash,
-        permanent_address,
-        version,
+        permanent_address: result.permanent_address,
+        version: result.meta.version,
+        scope: result.scope,
+        claimed_name: result.name_claim.map(|c| c.name),
     })
 }
 
-/// Republish an existing site from a folder — increments version, same permanent address
+/// Re-publish from a folder - increments version, same permanent address.
 #[tauri::command]
-pub async fn update_site(path: String, name: String) -> Result<PublishResponse, String> {
-    publish_site(path, name).await
+pub async fn update_site(
+    path: String,
+    name: String,
+    scope: Option<String>,
+    human_name: Option<String>,
+) -> Result<PublishResponse, String> {
+    publish_site(path, name, scope, human_name).await
+}
+
+/// Claim a human-readable name and broadcast it to peers.
+///
+/// `name` must be of the form `local` or `local@scope`, e.g. `"chiko@forum"`.
+#[tauri::command]
+pub async fn claim_name(name: String) -> Result<NameClaim, String> {
+    let key = signing_key()
+        .await
+        .map_err(|e: anyhow::Error| e.to_string())?;
+
+    let claim = NameClaim::new(&key, &name).map_err(|e| e.to_string())?;
+
+    let store = NameStore::open().map_err(|e| e.to_string())?;
+    let result = store.upsert(&claim).map_err(|e| e.to_string())?;
+
+    use names::UpsertResult;
+    match result {
+        UpsertResult::Inserted | UpsertResult::Updated => {}
+        UpsertResult::Rejected { owner } => {
+            return Err(format!("name '{name}' is already owned by {owner}"));
+        }
+        UpsertResult::Stale => {
+            return Err(format!("your claim for '{name}' is already up to date"));
+        }
+    }
+
+    // Broadcast so peers learn about the claim.
+    if let Ok(gossip) = get_gossip() {
+        broadcast_name_claim(&gossip, &key, &claim)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(claim)
+}
+
+/// Relinquish ownership of a name and tell peers.
+#[tauri::command]
+pub async fn release_name(name: String) -> Result<(), String> {
+    let key = signing_key()
+        .await
+        .map_err(|e: anyhow::Error| e.to_string())?;
+
+    let store = NameStore::open().map_err(|e| e.to_string())?;
+    store.delete(&name).map_err(|e| e.to_string())?;
+
+    if let Ok(gossip) = get_gossip() {
+        broadcast_name_release(&gossip, &key, &name)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+/// Resolve a human-readable name to a pubkey (or `null` if unknown).
+#[tauri::command]
+pub async fn resolve_name(name: String) -> Result<Option<String>, String> {
+    let store = NameStore::open().map_err(|e| e.to_string())?;
+    store.resolve(&name).map_err(|e| e.to_string())
+}
+
+/// All names claimed by the current node identity.
+#[tauri::command]
+pub async fn my_names() -> Result<Vec<NameClaim>, String> {
+    let key = signing_key()
+        .await
+        .map_err(|e: anyhow::Error| e.to_string())?;
+    let pubkey = hex::encode(key.verifying_key().to_bytes());
+    let store = NameStore::open().map_err(|e| e.to_string())?;
+    store.names_for_pubkey(&pubkey).map_err(|e| e.to_string())
+}
+
+/// All name claims whose scope matches the given topic (e.g. `"forum"`).
+#[tauri::command]
+pub async fn names_in_scope(scope: String) -> Result<Vec<NameClaim>, String> {
+    let store = NameStore::open().map_err(|e| e.to_string())?;
+    store.claims_in_scope(&scope).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -60,7 +170,6 @@ pub async fn resolve_address(addr: String) -> Result<String, String> {
         .map_err(|e| e.to_string())
 }
 
-// Renamed to avoid recursion — publisher::list_local_sites is aliased above
 #[tauri::command]
 pub async fn list_local_sites() -> Result<Vec<SiteMeta>, String> {
     publisher_list_local_sites()
@@ -110,11 +219,9 @@ pub async fn pick_folder(app: tauri::AppHandle) -> Result<Option<String>, String
         .file()
         .set_title("Select site folder")
         .blocking_pick_folder();
-
     Ok(folder.map(|p| p.to_string()))
 }
 
-/// Post a new top-level message to a topic
 #[tauri::command]
 pub async fn post_message(
     app: tauri::AppHandle,
@@ -139,7 +246,6 @@ pub async fn post_message(
     Ok(msg)
 }
 
-/// Reply to a message
 #[tauri::command]
 pub async fn reply_message(
     app: tauri::AppHandle,
@@ -165,7 +271,6 @@ pub async fn reply_message(
     Ok(msg)
 }
 
-/// List cached messages for a topic
 #[tauri::command]
 pub async fn list_messages(
     topic: String,
@@ -178,14 +283,16 @@ pub async fn list_messages(
         .map_err(|e| e.to_string())
 }
 
-/// List replies to a specific message
 #[tauri::command]
 pub async fn list_replies(parent_id: String) -> Result<Vec<GossipMessage>, String> {
     let store = MessageStore::open().map_err(|e| e.to_string())?;
     store.list_replies(&parent_id).map_err(|e| e.to_string())
 }
 
-/// Subscribe to live messages — emits a Tauri event for each new message
+/// Subscribe to live messages — emits a Tauri event for each new message.
+///
+/// Name-related messages (NameClaim, NameRelease) are also persisted to the
+/// local name store before being forwarded to the frontend.
 #[tauri::command]
 pub async fn subscribe_topic(topic: String, app: tauri::AppHandle) -> Result<(), String> {
     let gossip = get_gossip().map_err(|e| e.to_string())?;
@@ -194,14 +301,23 @@ pub async fn subscribe_topic(topic: String, app: tauri::AppHandle) -> Result<(),
 
     tokio::spawn(async move {
         while let Ok(msg) = rx.recv().await {
+            // Handle name-related messages transparently.
+            let is_name_msg = handle_name_gossip_message(&msg).unwrap_or(false);
+
+            // Always forward to the frontend so it can react to name events
+            // (e.g. display a resolved name badge on posts).
             app.emit(&event_name, &msg).ok();
+
+            // For pure name messages we don't insert into the message store.
+            if !is_name_msg && let Ok(store) = MessageStore::open() {
+                store.insert(&msg).ok();
+            }
         }
     });
 
     Ok(())
 }
 
-/// Delete your own message (broadcasts a tombstone)
 #[tauri::command]
 pub async fn delete_message(
     app: tauri::AppHandle,
@@ -250,15 +366,11 @@ pub async fn get_blocked_users() -> Result<Vec<String>, String> {
     Ok(list.blocked.into_iter().collect())
 }
 
-/// Forum owner: block a user from a topic (broadcasts signed modlist)
 #[tauri::command]
 pub async fn mod_block_user(topic: String, pubkey: String) -> Result<(), String> {
     let key = signing_key()
         .await
         .map_err(|e: anyhow::Error| e.to_string())?;
-    // Load or create modlist for this topic
-    // In production: store modlist in gossip store, broadcast update
-    // For now: local modlist broadcast as a ModBlock message
     let msg = GossipMessage::new(&key, &topic, MessageKind::ModBlock, &pubkey, None)
         .map_err(|e| e.to_string())?;
     get_gossip()
@@ -276,21 +388,18 @@ pub async fn index_site(hash: String) -> Result<Option<SiteRecord>, String> {
         .map_err(|e| e.to_string())
 }
 
-/// Full-text search across indexed sites
 #[tauri::command]
 pub async fn search_sites(query: String, limit: usize) -> Result<Vec<SiteRecord>, String> {
     let store = IndexStore::open().map_err(|e| e.to_string())?;
     store.search(&query, limit).map_err(|e| e.to_string())
 }
 
-/// Recently visited / most popular sites
 #[tauri::command]
 pub async fn recent_sites(limit: usize) -> Result<Vec<SiteRecord>, String> {
     let store = IndexStore::open().map_err(|e| e.to_string())?;
     store.recent(limit).map_err(|e| e.to_string())
 }
 
-/// Count indexed sites
 #[tauri::command]
 pub async fn index_count() -> Result<usize, String> {
     let store = IndexStore::open().map_err(|e| e.to_string())?;

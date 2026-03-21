@@ -13,6 +13,7 @@ members = [
   "crates/gossip",
   "crates/index",
   "crates/pointer",
+  "crates/names",
 ]
 
 [workspace.dependencies]

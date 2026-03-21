@@ -7,6 +7,7 @@ edition = "2024"
 types = { path = "../types" }
 node = { path = "../node" }
 pointer = { path = "../pointer" }
+names = { path = "../names" }
 iroh-blobs = { workspace = true }
 anyhow = { workspace = true }
 serde_json = { workspace = true }

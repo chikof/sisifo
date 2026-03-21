@@ -13,22 +13,30 @@ pub enum MessageKind {
     ModBlock,
     ModUnblock,
     ModPin,
+
+    /// Broadcast a signed [`names::NameClaim`] to peers.
+    /// `content` is the JSON-serialised `NameClaim`.
+    NameClaim,
+
+    /// Owner relinquishes a name.
+    /// `content` is the plain name string (e.g. `"chiko@forum"`).
+    NameRelease,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GossipMessage {
-    /// Unique sortable ID (ULID) - also encodes creation time
+    /// Unique sortable ID (ULID) — also encodes creation time.
     pub id: String,
-    /// ed25519 pubkey hex of the author
+    /// ed25519 pubkey hex of the author.
     pub author: String,
-    /// Topic this message belongs to
+    /// Topic this message belongs to.
     pub topic: String,
     pub kind: MessageKind,
     pub content: String,
-    /// ULID of parent message (for replies)
+    /// ULID of the parent message (replies only).
     pub parent_id: Option<String>,
     pub created_at: u64,
-    /// Signs over canonical_payload()
+    /// Signs over `canonical_payload()`.
     pub signature: Vec<u8>,
 }
 
@@ -81,7 +89,7 @@ impl GossipMessage {
             .map_err(|e| anyhow!("invalid message signature: {}", e))
     }
 
-    /// Deterministic bytes to sign - excludes signature field
+    /// Deterministic bytes to sign — excludes the signature field itself.
     fn canonical_payload(&self) -> Vec<u8> {
         format!(
             "{}:{}:{}:{:?}:{}:{}",

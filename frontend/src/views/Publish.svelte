@@ -3,6 +3,8 @@
 
 	let selectedPath = $state("");
 	let siteName = $state("");
+	let siteScope = $state(""); // "forum"
+	let humanName = $state(""); // "name@scope"
 	let publishing = $state(false);
 	let publishedHash = $state("");
 	let error = $state("");
@@ -10,6 +12,7 @@
 	let copiedPerm = $state(false);
 	let permanentAddress = $state("");
 	let publishedVersion = $state(0);
+	let claimedName = $state<string | null>(null);
 
 	async function pickFolder() {
 		const result = await invoke<string | null>("pick_folder");
@@ -25,19 +28,37 @@
 		error = "";
 		publishedHash = "";
 		permanentAddress = "";
+		claimedName = null;
+
+		// Auto-derive humanName from siteName + scope if user left it blank.
+		let nameToUse = humanName.trim() || null;
+		if (!nameToUse && siteName.trim()) {
+			const local = siteName
+				.trim()
+				.toLowerCase()
+				.replace(/[^a-z0-9_-]/g, "-");
+			nameToUse = siteScope.trim()
+				? `${local}@${siteScope.trim()}`
+				: local;
+		}
 
 		try {
 			const result = await invoke<{
 				hash: string;
 				permanent_address: string;
 				version: number;
+				scope: string | null;
+				claimed_name: string | null;
 			}>("publish_site", {
 				path: selectedPath,
 				name: siteName.trim(),
+				scope: siteScope.trim() ? siteScope.trim() : null,
+				humanName: nameToUse,
 			});
 			publishedHash = result.hash;
 			permanentAddress = result.permanent_address;
 			publishedVersion = result.version;
+			claimedName = result.claimed_name;
 		} catch (e: any) {
 			error = e?.toString() ?? "Publish failed";
 		} finally {
@@ -60,8 +81,11 @@
 	function reset() {
 		selectedPath = "";
 		siteName = "";
+		siteScope = "";
+		humanName = "";
 		publishedHash = "";
 		permanentAddress = "";
+		claimedName = null;
 		error = "";
 	}
 </script>
@@ -70,8 +94,8 @@
 	<div class="header">
 		<h1>Publish a site</h1>
 		<p>
-			Select a folder containing your site's files. It will be hashed, stored,
-			and announced to the network.
+			Select a folder containing your site's files. It will be hashed,
+			stored, and announced to the network.
 		</p>
 	</div>
 
@@ -86,19 +110,45 @@
 					stroke="currentColor"
 					stroke-width="2"
 					stroke-linecap="round"
-					stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg
+					stroke-linejoin="round"
+					><polyline points="20 6 9 17 4 12" /></svg
 				>
 			</div>
 			<div class="success-body">
-				<p class="success-title">Published - v{publishedVersion}</p>
+				<p class="success-title">Published — v{publishedVersion}</p>
 				<p class="success-name">{siteName}</p>
+
+				{#if claimedName}
+					<div class="name-badge">
+						<svg
+							width="12"
+							height="12"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							><path
+								d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"
+							/><line x1="7" y1="7" x2="7.01" y2="7" /></svg
+						>
+						<span>Name claimed: <strong>{claimedName}</strong></span
+						>
+					</div>
+					<p class="name-hint">
+						Peers subscribed to this topic will be able to reach you
+						via
+						<code>sisi://{claimedName}</code>.
+					</p>
+				{/if}
 
 				<div class="addr-block">
 					<div class="addr-label">
 						Permanent address
-						<span class="addr-hint">
-							share this - always points to latest version
-						</span>
+						<span class="addr-hint"
+							>share this — always points to the latest version</span
+						>
 					</div>
 					<div class="hash-row">
 						<code class="hash perm">{permanentAddress}</code>
@@ -129,7 +179,13 @@
 									stroke-width="2"
 									stroke-linecap="round"
 									stroke-linejoin="round"
-									><rect x="9" y="9" width="13" height="13" rx="2" /><path
+									><rect
+										x="9"
+										y="9"
+										width="13"
+										height="13"
+										rx="2"
+									/><path
 										d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
 									/></svg
 								>
@@ -141,11 +197,16 @@
 				<div class="addr-block">
 					<div class="addr-label">
 						Version hash
-						<span class="addr-hint">this specific version only</span>
+						<span class="addr-hint">this specific version only</span
+						>
 					</div>
 					<div class="hash-row">
 						<code class="hash">{publishedHash}</code>
-						<button class="copy-btn" onclick={copy} title="Copy version hash">
+						<button
+							class="copy-btn"
+							onclick={copy}
+							title="Copy version hash"
+						>
 							{#if copied}
 								<svg
 									width="13"
@@ -168,7 +229,13 @@
 									stroke-width="2"
 									stroke-linecap="round"
 									stroke-linejoin="round"
-									><rect x="9" y="9" width="13" height="13" rx="2" /><path
+									><rect
+										x="9"
+										y="9"
+										width="13"
+										height="13"
+										rx="2"
+									/><path
 										d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
 									/></svg
 								>
@@ -178,14 +245,18 @@
 				</div>
 
 				<p class="success-hint">
-					Republish anytime from the same folder - the permanent address will
-					automatically point to the new version.
+					Republish anytime from the same folder — the permanent
+					address and name will automatically point to the new
+					version.
 				</p>
 			</div>
-			<button class="secondary-btn" onclick={reset}>Publish another</button>
+			<button class="secondary-btn" onclick={reset}
+				>Publish another</button
+			>
 		</div>
 	{:else}
 		<div class="form">
+			<!-- Folder picker -->
 			<div class="field">
 				<label for="folder">Site folder</label>
 				<div class="folder-row">
@@ -228,13 +299,18 @@
 									d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
 								/></svg
 							>
-							<span class="folder-placeholder">Click to select a folder…</span>
+							<span class="folder-placeholder"
+								>Click to select a folder…</span
+							>
 						{/if}
 					</div>
-					<button class="browse-btn" onclick={pickFolder}>Browse</button>
+					<button class="browse-btn" onclick={pickFolder}
+						>Browse</button
+					>
 				</div>
 			</div>
 
+			<!-- Site name -->
 			<div class="field">
 				<label for="name">Site name</label>
 				<input
@@ -245,8 +321,58 @@
 					maxlength="64"
 					spellcheck="false"
 				/>
+				<span class="field-hint"
+					>Human-readable label stored in the manifest.</span
+				>
+			</div>
+
+			<!-- Scope (optional) -->
+			<div class="field">
+				<label for="scope"
+					>Topic scope <span class="optional-badge">optional</span
+					></label
+				>
+				<input
+					id="scope"
+					type="text"
+					bind:value={siteScope}
+					placeholder="e.g. forum, blog, portfolio"
+					maxlength="32"
+					spellcheck="false"
+					autocomplete="off"
+				/>
 				<span class="field-hint">
-					Human-readable label stored in the manifest.
+					Group your site under a gossip topic. Peers in that topic
+					will discover it automatically.
+				</span>
+			</div>
+
+			<!-- Human name (optional, auto-derived if blank) -->
+			<div class="field">
+				<label for="human-name">
+					Human-readable name <span class="optional-badge"
+						>optional</span
+					>
+				</label>
+				<input
+					id="human-name"
+					type="text"
+					bind:value={humanName}
+					placeholder={siteName && siteScope
+						? `${siteName.toLowerCase().replace(/[^a-z0-9_-]/g, "-")}@${siteScope.toLowerCase()}`
+						: siteName
+							? siteName
+									.toLowerCase()
+									.replace(/[^a-z0-9_-]/g, "-")
+							: "chiko@forum"}
+					maxlength="64"
+					spellcheck="false"
+					autocomplete="off"
+				/>
+				<span class="field-hint">
+					Leave blank to auto-derive from site name + scope. Format:
+					<code>local</code> or <code>local@scope</code> — only
+					<code>[a-z0-9_-]</code> characters.
 				</span>
 			</div>
 
@@ -290,17 +416,22 @@
 						stroke-width="2"
 						stroke-linecap="round"
 						stroke-linejoin="round"
-						><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline
-							points="17 8 12 3 7 8"
-						/><line x1="12" y1="3" x2="12" y2="15" /></svg
+						><path
+							d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+						/><polyline points="17 8 12 3 7 8" /><line
+							x1="12"
+							y1="3"
+							x2="12"
+							y2="15"
+						/></svg
 					>
 					Publish to network
 				{/if}
 			</button>
 
 			<p class="disclaimer">
-				Files are hashed locally, then announced via the iroh DHT. Nothing is
-				uploaded to a central server.
+				Files are hashed locally, then announced via the iroh DHT.
+				Nothing is uploaded to a central server.
 			</p>
 		</div>
 	{/if}
@@ -344,6 +475,20 @@
 		font-weight: 500;
 		color: var(--text-2);
 		letter-spacing: 0.01em;
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	.optional-badge {
+		font-size: 10px;
+		font-weight: 400;
+		color: var(--text-3);
+		background: var(--surface-2);
+		border: 1px solid var(--border);
+		border-radius: 3px;
+		padding: 0 5px;
+		letter-spacing: 0.03em;
 	}
 
 	.folder-row {
@@ -430,6 +575,15 @@
 	.field-hint {
 		font-size: 12px;
 		color: var(--text-3);
+		line-height: 1.5;
+	}
+	.field-hint code {
+		font-family: var(--mono);
+		font-size: 11px;
+		color: var(--accent);
+		background: var(--accent-light);
+		padding: 1px 4px;
+		border-radius: 3px;
 	}
 
 	.primary-btn {
@@ -493,7 +647,7 @@
 		color: #92400e;
 	}
 
-	/* Success state */
+	/* ── Success state ── */
 	.success-card {
 		background: var(--surface);
 		border: 1px solid var(--border);
@@ -503,7 +657,6 @@
 		flex-direction: column;
 		gap: 16px;
 	}
-
 	.success-icon {
 		width: 36px;
 		height: 36px;
@@ -514,7 +667,6 @@
 		align-items: center;
 		justify-content: center;
 	}
-
 	.success-body {
 		display: flex;
 		flex-direction: column;
@@ -528,6 +680,35 @@
 	.success-name {
 		font-size: 13px;
 		color: var(--text-2);
+	}
+
+	.name-badge {
+		display: flex;
+		align-items: center;
+		gap: 7px;
+		padding: 8px 12px;
+		background: var(--accent-light);
+		border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+		border-radius: var(--radius);
+		font-size: 13px;
+		color: var(--accent);
+		margin-top: 8px;
+	}
+	.name-badge strong {
+		font-weight: 600;
+	}
+	.name-hint {
+		font-size: 12px;
+		color: var(--text-3);
+		line-height: 1.5;
+	}
+	.name-hint code {
+		font-family: var(--mono);
+		font-size: 11px;
+		color: var(--accent);
+		background: var(--accent-light);
+		padding: 1px 4px;
+		border-radius: 3px;
 	}
 
 	.hash-row {
@@ -546,6 +727,11 @@
 		word-break: break-all;
 		flex: 1;
 	}
+	.hash.perm {
+		background: var(--accent-light);
+		border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+		color: var(--accent);
+	}
 	.copy-btn {
 		width: 28px;
 		height: 28px;
@@ -563,32 +749,6 @@
 			color 0.12s;
 	}
 	.copy-btn:hover {
-		border-color: var(--accent);
-		color: var(--accent);
-	}
-
-	.success-hint {
-		font-size: 12px;
-		color: var(--text-3);
-		line-height: 1.5;
-		margin-top: 4px;
-	}
-
-	.secondary-btn {
-		padding: 8px 16px;
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		background: none;
-		color: var(--text-2);
-		font-family: "DM Sans", sans-serif;
-		font-size: 13px;
-		cursor: pointer;
-		align-self: flex-start;
-		transition:
-			border-color 0.15s,
-			color 0.15s;
-	}
-	.secondary-btn:hover {
 		border-color: var(--accent);
 		color: var(--accent);
 	}
@@ -612,9 +772,29 @@
 		color: var(--text-3);
 		font-weight: 400;
 	}
-	.hash.perm {
-		background: var(--accent-light);
-		border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+
+	.success-hint {
+		font-size: 12px;
+		color: var(--text-3);
+		line-height: 1.5;
+		margin-top: 4px;
+	}
+	.secondary-btn {
+		padding: 8px 16px;
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		background: none;
+		color: var(--text-2);
+		font-family: "DM Sans", sans-serif;
+		font-size: 13px;
+		cursor: pointer;
+		align-self: flex-start;
+		transition:
+			border-color 0.15s,
+			color 0.15s;
+	}
+	.secondary-btn:hover {
+		border-color: var(--accent);
 		color: var(--accent);
 	}
 </style>
