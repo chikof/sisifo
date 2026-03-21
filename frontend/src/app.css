@@ -22,8 +22,11 @@
 
 	--bg: #f5f4f2;
 
-	--mono: "DM Mono", monospace;
-	--sans: "DM Sans", "Helvetica Neue", sans-serif;
+	--mono:
+		"DM Mono", ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace;
+	--sans:
+		"DM Sans", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+		sans-serif;
 	--radius: 6px;
 	--rail-w: 48px;
 }
