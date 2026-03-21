@@ -1,306 +1,70 @@
 <script lang="ts">
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import { onMount, onDestroy } from "svelte";
+	import { invoke } from "@tauri-apps/api/core";
+	import { listen } from "@tauri-apps/api/event";
+	import { onMount, onDestroy } from "svelte";
 
-interface Tab {
-	id: string;
-	title: string;
-	address: string;
-	gatewayUrl: string;
-	inputValue: string;
-	loading: boolean;
-	error: string;
-	history: string[];
-	historyIndex: number;
-	groupId: string | null;
-	iconUrl: string | null;
-}
-
-interface TabGroup {
-	id: string;
-	name: string;
-	color: string;
-	collapsed: boolean;
-}
-
-let {
-	tabs,
-	activeTabId,
-	groups,
-}: { tabs: Tab[]; activeTabId: string; groups: TabGroup[] } = $props();
-
-// Drag state
-let dragTabId = $state<string | null>(null);
-
-let dragOverTabId = $state<string | null>(null);
-let activeTab = $state<Tab>();
-
-// Context menu
-let ctxMenu: { x: number; y: number; tabId: string } | null = $state(null);
-
-// Group creation modal
-let showGroupModal = $state(false);
-let groupModalTabId: string | null = $state(null);
-let newGroupName = $state("");
-let newGroupColor = $state("#0d9488");
-
-// Gossip bridge
-let gossipUnlisten: (() => void) | null = null;
-let activeIframe: HTMLIFrameElement | null = $state(null);
-
-const GROUP_COLORS = [
-	"#0d9488",
-	"#0369a1",
-	"#7c3aed",
-	"#be185d",
-	"#c2410c",
-	"#15803d",
-	"#b45309",
-	"#4338ca",
-];
-
-$effect(() => {
-	activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0];
-});
-
-function uid() {
-	return Math.random().toString(36).slice(2, 9);
-}
-
-function newTab(address = "", groupId: string | null = null): Tab {
-	return {
-		id: uid(),
-		title: address ? address.slice(0, 20) + "…" : "New tab",
-		address,
-		gatewayUrl: "",
-		inputValue: address,
-		loading: false,
-		error: "",
-		history: address ? [address] : [],
-		historyIndex: address ? 0 : -1,
-		groupId,
-		iconUrl: null,
-	};
-}
-
-function openTab(address = "", groupId: string | null = null) {
-	const tab = newTab(address, groupId);
-	tabs = [...tabs, tab];
-	activeTabId = tab.id;
-	if (address) navigateTab(tab.id, address);
-}
-
-function closeTab(id: string) {
-	if (tabs.length === 1) {
-		// Reset to blank instead of closing last tab
-		tabs = [newTab()];
-		activeTabId = tabs[0].id;
-		return;
+	interface Tab {
+		id: string;
+		title: string;
+		address: string;
+		gatewayUrl: string;
+		inputValue: string;
+		loading: boolean;
+		error: string;
+		history: string[];
+		historyIndex: number;
+		groupId: string | null;
+		iconUrl: string | null;
 	}
-	const idx = tabs.findIndex((t) => t.id === id);
-	tabs = tabs.filter((t) => t.id !== id);
-	if (activeTabId === id) {
-		activeTabId = tabs[Math.max(0, idx - 1)].id;
+
+	interface TabGroup {
+		id: string;
+		name: string;
+		color: string;
+		collapsed: boolean;
 	}
-}
 
-function duplicateTab(id: string) {
-	const src = tabs.find((t) => t.id === id);
-	if (!src) return;
-	const tab = newTab(src.address, src.groupId);
-	tab.gatewayUrl = src.gatewayUrl;
-	tab.title = src.title;
-	const idx = tabs.findIndex((t) => t.id === id);
-	tabs = [...tabs.slice(0, idx + 1), tab, ...tabs.slice(idx + 1)];
-	activeTabId = tab.id;
-}
+	let {
+		tabs = $bindable<Tab[]>(),
+		activeTabId = $bindable<string>(),
+		groups = $bindable<TabGroup[]>(),
+	}: {
+		tabs: Tab[];
+		activeTabId: string;
+		groups: TabGroup[];
+	} = $props();
 
-function updateTab(id: string, patch: Partial<Tab>) {
-	tabs = tabs.map((t) => (t.id === id ? { ...t, ...patch } : t));
-}
+	// Drag state
+	let dragTabId = $state<string | null>(null);
+	let dragOverTabId = $state<string | null>(null);
 
-function sanitize(v: string) {
-	return v.replace(/^sisi:\/\//, "").trim();
-}
+	// Context menu
+	let ctxMenu = $state<{ x: number; y: number; tabId: string } | null>(null);
 
-async function navigateTab(id: string, addr?: string) {
-	const tab = tabs.find((t) => t.id === id);
-	if (!tab) return;
-	const target = sanitize(addr ?? tab.inputValue);
-	if (!target) return;
+	// Group creation modal
+	let showGroupModal = $state(false);
+	let groupModalTabId = $state<string | null>(null);
+	let newGroupName = $state("");
+	let newGroupColor = $state("#0d9488");
 
-	updateTab(id, {
-		loading: true,
-		error: "",
-		title: target.slice(0, 12) + "…",
-	});
+	// Gossip bridge
+	let gossipUnlisten: (() => void) | null = null;
+	let activeIframe = $state<HTMLIFrameElement | null>(null);
 
-	try {
-		const url = await invoke<string>("resolve_address", {
-			addr: target,
-		});
-		const title = target.slice(0, 20) + (target.length > 20 ? "…" : "");
-		const history = [...tab.history.slice(0, tab.historyIndex + 1), target];
+	const GROUP_COLORS = [
+		"#0d9488",
+		"#0369a1",
+		"#7c3aed",
+		"#be185d",
+		"#c2410c",
+		"#15803d",
+		"#b45309",
+		"#4338ca",
+	];
 
-		updateTab(id, {
-			gatewayUrl: url,
-			address: target,
-			inputValue: target,
-			title,
-			loading: false,
-			history,
-			historyIndex: history.length - 1,
-		});
+	let activeTab = $derived(tabs.find((t) => t.id === activeTabId) ?? tabs[0]);
 
-		try {
-			const record = await invoke<{
-				name: string;
-				icon_url: string | null;
-			} | null>("index_site", { hash: target });
-
-			if (record?.name) {
-				updateTab(id, {
-					title: record.name,
-					iconUrl: record.icon_url ?? null,
-				});
-			}
-		} catch {}
-	} catch (e: any) {
-		updateTab(id, {
-			error: e?.toString() ?? "Failed",
-			loading: false,
-			gatewayUrl: "",
-		});
-	}
-}
-
-function goBack(id: string) {
-	const tab = tabs.find((t) => t.id === id);
-	if (!tab || tab.historyIndex <= 0) return;
-	navigateTab(id, tab.history[tab.historyIndex - 1]);
-}
-
-function goForward(id: string) {
-	const tab = tabs.find((t) => t.id === id);
-	if (!tab || tab.historyIndex >= tab.history.length - 1) return;
-	navigateTab(id, tab.history[tab.historyIndex + 1]);
-}
-
-function onDragStart(e: DragEvent, id: string) {
-	dragTabId = id;
-	e.dataTransfer!.effectAllowed = "move";
-}
-
-function onDragOver(e: DragEvent, id: string) {
-	e.preventDefault();
-	dragOverTabId = id;
-}
-
-function onDrop(e: DragEvent, targetId: string) {
-	e.preventDefault();
-	if (!dragTabId || dragTabId === targetId) {
-		dragTabId = null;
-		dragOverTabId = null;
-		return;
-	}
-	const from = tabs.findIndex((t) => t.id === dragTabId);
-	const to = tabs.findIndex((t) => t.id === targetId);
-	const reordered = [...tabs];
-	const [moved] = reordered.splice(from, 1);
-	reordered.splice(to, 0, moved);
-	tabs = reordered;
-	dragTabId = null;
-	dragOverTabId = null;
-}
-
-function onDragEnd() {
-	dragTabId = null;
-	dragOverTabId = null;
-}
-
-function showCtxMenu(e: MouseEvent, tabId: string) {
-	e.preventDefault();
-	ctxMenu = { x: e.clientX, y: e.clientY, tabId };
-}
-
-function closeCtxMenu() {
-	ctxMenu = null;
-}
-
-function ctxAction(action: string) {
-	if (!ctxMenu) return;
-	const id = ctxMenu.tabId;
-	closeCtxMenu();
-	switch (action) {
-		case "close":
-			closeTab(id);
-			break;
-		case "duplicate":
-			duplicateTab(id);
-			break;
-		case "new-tab":
-			openTab();
-			break;
-		case "new-group":
-			groupModalTabId = id;
-			showGroupModal = true;
-			break;
-		case "remove-group":
-			updateTab(id, { groupId: null });
-			break;
-	}
-}
-
-function createGroup() {
-	if (!newGroupName.trim()) return;
-	const group: TabGroup = {
-		id: uid(),
-		name: newGroupName.trim(),
-		color: newGroupColor,
-		collapsed: false,
-	};
-	groups = [...groups, group];
-	if (groupModalTabId) updateTab(groupModalTabId, { groupId: group.id });
-	showGroupModal = false;
-	newGroupName = "";
-	groupModalTabId = null;
-}
-
-function toggleGroupCollapse(groupId: string) {
-	groups = groups.map((g) =>
-		g.id === groupId ? { ...g, collapsed: !g.collapsed } : g,
-	);
-	// If active tab is in collapsed group, switch to first visible tab
-	const activeGroup = groups.find((g) => g.id === groupId);
-	if (activeGroup?.collapsed) {
-		const tab = tabs.find((t) => t.id === activeTabId);
-		if (tab?.groupId === groupId) {
-			const visible = tabs.find(
-				(t) =>
-					!t.groupId ||
-					!groups.find((g) => g.id === t.groupId)?.collapsed,
-			);
-			if (visible) activeTabId = visible.id;
-		}
-	}
-}
-
-function groupColor(groupId: string | null) {
-	if (!groupId) return null;
-	return groups.find((g) => g.id === groupId)?.color ?? null;
-}
-
-function groupName(groupId: string | null) {
-	if (!groupId) return null;
-	return groups.find((g) => g.id === groupId)?.name ?? null;
-}
-
-let orderedTabs = $state<(Tab | TabGroup)[]>();
-
-// Tabs ordered: group tabs cluster together, ungrouped tabs in between
-$effect(() => {
-	orderedTabs = (() => {
+	let orderedTabs = $derived.by(() => {
 		const result: (Tab | TabGroup)[] = [];
 		const seen = new Set<string>();
 		for (const tab of tabs) {
@@ -317,117 +81,343 @@ $effect(() => {
 			if (!group?.collapsed) result.push(tab);
 		}
 		return result;
-	})();
-});
+	});
 
-async function handleBridgeMessage(event: MessageEvent) {
-	if (
-		!event.origin.startsWith("http://localhost:7777") &&
-		!event.origin.startsWith("http://127.0.0.1:7777")
-	)
-		return;
-	const { id, cmd, args } = event.data ?? {};
-	if (!id || !cmd) return;
+	function uid() {
+		return Math.random().toString(36).slice(2, 9);
+	}
 
-	const reply = (result?: any, err?: string) => {
-		(event.source as WindowProxy)?.postMessage(
-			err ? { id, error: err } : { id, result },
-			{ targetOrigin: event.origin },
-		);
-	};
+	function newTab(address = "", groupId: string | null = null): Tab {
+		return {
+			id: uid(),
+			title: address ? address.slice(0, 20) + "…" : "New tab",
+			address,
+			gatewayUrl: "",
+			inputValue: address,
+			loading: false,
+			error: "",
+			history: address ? [address] : [],
+			historyIndex: address ? 0 : -1,
+			groupId,
+			iconUrl: null,
+		};
+	}
 
-	if (cmd === "subscribe_topic") {
-		gossipUnlisten?.();
+	function openTab(address = "", groupId: string | null = null) {
+		const tab = newTab(address, groupId);
+		tabs = [...tabs, tab];
+		activeTabId = tab.id;
+		if (address) navigateTab(tab.id, address);
+	}
+
+	function closeTab(id: string) {
+		if (tabs.length === 1) {
+			tabs = [newTab()];
+			activeTabId = tabs[0].id;
+			return;
+		}
+		const idx = tabs.findIndex((t) => t.id === id);
+		tabs = tabs.filter((t) => t.id !== id);
+		if (activeTabId === id) {
+			activeTabId = tabs[Math.max(0, idx - 1)].id;
+		}
+	}
+
+	function duplicateTab(id: string) {
+		const src = tabs.find((t) => t.id === id);
+		if (!src) return;
+		const tab = newTab(src.address, src.groupId);
+		tab.gatewayUrl = src.gatewayUrl;
+		tab.title = src.title;
+		const idx = tabs.findIndex((t) => t.id === id);
+		tabs = [...tabs.slice(0, idx + 1), tab, ...tabs.slice(idx + 1)];
+		activeTabId = tab.id;
+	}
+
+	function updateTab(id: string, patch: Partial<Tab>) {
+		tabs = tabs.map((t) => (t.id === id ? { ...t, ...patch } : t));
+	}
+
+	function sanitize(v: string) {
+		return v.replace(/^sisi:\/\//, "").trim();
+	}
+
+	async function navigateTab(id: string, addr?: string) {
+		const tab = tabs.find((t) => t.id === id);
+		if (!tab) return;
+		const target = sanitize(addr ?? tab.inputValue);
+		if (!target) return;
+
+		updateTab(id, {
+			loading: true,
+			error: "",
+			title: target.slice(0, 12) + "…",
+		});
+
 		try {
-			gossipUnlisten = await listen(`gossip:${args?.topic}`, (e) => {
-				activeIframe?.contentWindow?.postMessage(
-					{
-						tauriEvent: `gossip:${args?.topic}`,
-						payload: e.payload,
-					},
-					event.origin,
-				);
+			const url = await invoke<string>("resolve_address", {
+				addr: target,
 			});
-			reply(null);
+			const title = target.slice(0, 20) + (target.length > 20 ? "…" : "");
+			const history = [
+				...tab.history.slice(0, tab.historyIndex + 1),
+				target,
+			];
+
+			updateTab(id, {
+				gatewayUrl: url,
+				address: target,
+				inputValue: target,
+				title,
+				loading: false,
+				history,
+				historyIndex: history.length - 1,
+			});
+
+			try {
+				const record = await invoke<{
+					name: string;
+					icon_url: string | null;
+				} | null>("index_site", { hash: target });
+				if (record?.name) {
+					updateTab(id, {
+						title: record.name,
+						iconUrl: record.icon_url ?? null,
+					});
+				}
+			} catch {}
+		} catch (e: any) {
+			updateTab(id, {
+				error: e?.toString() ?? "Failed",
+				loading: false,
+				gatewayUrl: "",
+			});
+		}
+	}
+
+	function goBack(id: string) {
+		const tab = tabs.find((t) => t.id === id);
+		if (!tab || tab.historyIndex <= 0) return;
+		navigateTab(id, tab.history[tab.historyIndex - 1]);
+	}
+
+	function goForward(id: string) {
+		const tab = tabs.find((t) => t.id === id);
+		if (!tab || tab.historyIndex >= tab.history.length - 1) return;
+		navigateTab(id, tab.history[tab.historyIndex + 1]);
+	}
+
+	function onDragStart(e: DragEvent, id: string) {
+		dragTabId = id;
+		e.dataTransfer!.effectAllowed = "move";
+	}
+
+	function onDragOver(e: DragEvent, id: string) {
+		e.preventDefault();
+		dragOverTabId = id;
+	}
+
+	function onDrop(e: DragEvent, targetId: string) {
+		e.preventDefault();
+		if (!dragTabId || dragTabId === targetId) {
+			dragTabId = null;
+			dragOverTabId = null;
+			return;
+		}
+		const from = tabs.findIndex((t) => t.id === dragTabId);
+		const to = tabs.findIndex((t) => t.id === targetId);
+		const reordered = [...tabs];
+		const [moved] = reordered.splice(from, 1);
+		reordered.splice(to, 0, moved);
+		tabs = reordered;
+		dragTabId = null;
+		dragOverTabId = null;
+	}
+
+	function onDragEnd() {
+		dragTabId = null;
+		dragOverTabId = null;
+	}
+
+	function showCtxMenu(e: MouseEvent, tabId: string) {
+		e.preventDefault();
+		ctxMenu = { x: e.clientX, y: e.clientY, tabId };
+	}
+
+	function closeCtxMenu() {
+		ctxMenu = null;
+	}
+
+	function ctxAction(action: string) {
+		if (!ctxMenu) return;
+		const id = ctxMenu.tabId;
+		closeCtxMenu();
+		switch (action) {
+			case "close":
+				closeTab(id);
+				break;
+			case "duplicate":
+				duplicateTab(id);
+				break;
+			case "new-tab":
+				openTab();
+				break;
+			case "new-group":
+				groupModalTabId = id;
+				showGroupModal = true;
+				break;
+			case "remove-group":
+				updateTab(id, { groupId: null });
+				break;
+		}
+	}
+
+	function createGroup() {
+		if (!newGroupName.trim()) return;
+		const group: TabGroup = {
+			id: uid(),
+			name: newGroupName.trim(),
+			color: newGroupColor,
+			collapsed: false,
+		};
+		groups = [...groups, group];
+		if (groupModalTabId) updateTab(groupModalTabId, { groupId: group.id });
+		showGroupModal = false;
+		newGroupName = "";
+		groupModalTabId = null;
+	}
+
+	function toggleGroupCollapse(groupId: string) {
+		groups = groups.map((g) =>
+			g.id === groupId ? { ...g, collapsed: !g.collapsed } : g,
+		);
+		const activeGroup = groups.find((g) => g.id === groupId);
+		if (activeGroup?.collapsed) {
+			const tab = tabs.find((t) => t.id === activeTabId);
+			if (tab?.groupId === groupId) {
+				const visible = tabs.find(
+					(t) =>
+						!t.groupId ||
+						!groups.find((g) => g.id === t.groupId)?.collapsed,
+				);
+				if (visible) activeTabId = visible.id;
+			}
+		}
+	}
+
+	function groupColor(groupId: string | null) {
+		if (!groupId) return null;
+		return groups.find((g) => g.id === groupId)?.color ?? null;
+	}
+
+	async function handleBridgeMessage(event: MessageEvent) {
+		if (
+			!event.origin.startsWith("http://localhost:7777") &&
+			!event.origin.startsWith("http://127.0.0.1:7777")
+		)
+			return;
+		const { id, cmd, args } = event.data ?? {};
+		if (!id || !cmd) return;
+
+		const reply = (result?: any, err?: string) => {
+			(event.source as WindowProxy)?.postMessage(
+				err ? { id, error: err } : { id, result },
+				{ targetOrigin: event.origin },
+			);
+		};
+
+		if (cmd === "subscribe_topic") {
+			gossipUnlisten?.();
+			try {
+				gossipUnlisten = await listen(`gossip:${args?.topic}`, (e) => {
+					activeIframe?.contentWindow?.postMessage(
+						{
+							tauriEvent: `gossip:${args?.topic}`,
+							payload: e.payload,
+						},
+						event.origin,
+					);
+				});
+				reply(null);
+			} catch (e: any) {
+				reply(undefined, String(e));
+			}
+			return;
+		}
+
+		try {
+			reply(await invoke(cmd, args ?? {}));
 		} catch (e: any) {
 			reply(undefined, String(e));
 		}
-		return;
 	}
 
-	try {
-		reply(await invoke(cmd, args ?? {}));
-	} catch (e: any) {
-		reply(undefined, String(e));
-	}
-}
+	onMount(() => {
+		window.addEventListener("message", handleBridgeMessage);
+	});
+	onDestroy(() => {
+		window.removeEventListener("message", handleBridgeMessage);
+		gossipUnlisten?.();
+	});
 
-onMount(() => {
-	window.addEventListener("message", handleBridgeMessage);
-});
-onDestroy(() => {
-	window.removeEventListener("message", handleBridgeMessage);
-	gossipUnlisten?.();
-});
-
-// Keyboard shortcuts
-function onWindowKeydown(e: KeyboardEvent) {
-	if (e.ctrlKey || e.metaKey) {
-		if (e.key === "t") {
-			e.preventDefault();
-			openTab();
-		}
-		if (e.key === "w") {
-			e.preventDefault();
-			closeTab(activeTabId);
-		}
-		if (e.key === "Tab") {
-			e.preventDefault();
-			const visibleTabs = tabs.filter((t) => {
-				const g = t.groupId
-					? groups.find((g) => g.id === t.groupId)
-					: null;
-				return !g?.collapsed;
-			});
-			const idx = visibleTabs.findIndex((t) => t.id === activeTabId);
-			const next = e.shiftKey
-				? visibleTabs[
-						(idx - 1 + visibleTabs.length) % visibleTabs.length
-					]
-				: visibleTabs[(idx + 1) % visibleTabs.length];
-			if (next) activeTabId = next.id;
+	function onWindowKeydown(e: KeyboardEvent) {
+		if (e.ctrlKey || e.metaKey) {
+			if (e.key === "t") {
+				e.preventDefault();
+				openTab();
+			}
+			if (e.key === "w") {
+				e.preventDefault();
+				closeTab(activeTabId);
+			}
+			if (e.key === "Tab") {
+				e.preventDefault();
+				const visibleTabs = tabs.filter((t) => {
+					const g = t.groupId
+						? groups.find((g) => g.id === t.groupId)
+						: null;
+					return !g?.collapsed;
+				});
+				const idx = visibleTabs.findIndex((t) => t.id === activeTabId);
+				const next = e.shiftKey
+					? visibleTabs[
+							(idx - 1 + visibleTabs.length) % visibleTabs.length
+						]
+					: visibleTabs[(idx + 1) % visibleTabs.length];
+				if (next) activeTabId = next.id;
+			}
 		}
 	}
-}
 </script>
 
-<svelte:window on:keydown={onWindowKeydown} on:click={closeCtxMenu} />
+<svelte:window onkeydown={onWindowKeydown} onclick={closeCtxMenu} />
 
 <div class="browser">
 	<!-- TAB BAR -->
 	<div class="tab-bar">
 		{#each orderedTabs as item ("id" in item && "address" in item ? item.id : `group-${item.id}`)}
 			{#if "address" in item}
-				<!-- Tab -->
 				{@const tab = item}
 				{@const color = groupColor(tab.groupId)}
 				<div
-					class="tab"
+					class={[
+						"tab",
+						tab.id === activeTabId && "active",
+						dragOverTabId === tab.id && "drag-over",
+					]}
 					title={tab.title}
-					class:active={tab.id === activeTabId}
-					class:drag-over={dragOverTabId === tab.id}
 					style={color ? `--tab-group-color: ${color}` : ""}
 					draggable="true"
-					on:click={() => (activeTabId = tab.id)}
-					on:contextmenu={(e) => showCtxMenu(e, tab.id)}
-					on:dragstart={(e) => onDragStart(e, tab.id)}
-					on:dragover={(e) => onDragOver(e, tab.id)}
-					on:drop={(e) => onDrop(e, tab.id)}
-					on:dragend={onDragEnd}
+					onclick={() => (activeTabId = tab.id)}
+					oncontextmenu={(e) => showCtxMenu(e, tab.id)}
+					ondragstart={(e) => onDragStart(e, tab.id)}
+					ondragover={(e) => onDragOver(e, tab.id)}
+					ondrop={(e) => onDrop(e, tab.id)}
+					ondragend={onDragEnd}
 					role="tab"
 					tabindex="0"
 					aria-selected={tab.id === activeTabId}
-					on:keydown={(e) =>
+					onkeydown={(e) =>
 						e.key === "Enter" && (activeTabId = tab.id)}
 				>
 					{#if color}
@@ -437,35 +427,7 @@ function onWindowKeydown(e: KeyboardEvent) {
 					{#if tab.loading}
 						<span class="tab-spinner"></span>
 					{:else if tab.iconUrl}
-						<img
-							src={tab.iconUrl}
-							alt=""
-							class="tab-favicon"
-							on:error={() => {
-								this.style.display = "none";
-								this.nextElementSibling.style.display = "flex";
-							}}
-						/>
-						<span class="tab-favicon-fallback" style="display:none">
-							<svg
-								width="12"
-								height="12"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="1.8"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								><circle cx="12" cy="12" r="10" /><line
-									x1="2"
-									y1="12"
-									x2="22"
-									y2="12"
-								/><path
-									d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
-								/></svg
-							>
-						</span>
+						<img src={tab.iconUrl} alt="" class="tab-favicon" />
 					{:else}
 						<svg
 							width="12"
@@ -477,20 +439,25 @@ function onWindowKeydown(e: KeyboardEvent) {
 							stroke-linecap="round"
 							stroke-linejoin="round"
 							class="tab-icon"
-							><circle cx="12" cy="12" r="10" /><line
+						>
+							<circle cx="12" cy="12" r="10" /><line
 								x1="2"
 								y1="12"
 								x2="22"
 								y2="12"
-							/><path
+							/>
+							<path
 								d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
-							/></svg
-						>
+							/>
+						</svg>
 					{/if}
 					<span class="tab-title">{tab.title}</span>
 					<button
 						class="tab-close"
-						on:click|stopPropagation={() => closeTab(tab.id)}
+						onclick={(e) => {
+							e.stopPropagation();
+							closeTab(tab.id);
+						}}
 						aria-label="Close tab"
 					>
 						<svg
@@ -501,22 +468,22 @@ function onWindowKeydown(e: KeyboardEvent) {
 							stroke="currentColor"
 							stroke-width="2.5"
 							stroke-linecap="round"
-							><line x1="18" y1="6" x2="6" y2="18" /><line
+						>
+							<line x1="18" y1="6" x2="6" y2="18" /><line
 								x1="6"
 								y1="6"
 								x2="18"
 								y2="18"
-							/></svg
-						>
+							/>
+						</svg>
 					</button>
 				</div>
 			{:else}
-				<!-- Group pill -->
 				{@const group = item}
 				<button
 					class="group-pill"
 					style="--group-color: {group.color}"
-					on:click={() => toggleGroupCollapse(group.id)}
+					onclick={() => toggleGroupCollapse(group.id)}
 					title="{group.collapsed
 						? 'Expand'
 						: 'Collapse'} group: {group.name}"
@@ -536,15 +503,16 @@ function onWindowKeydown(e: KeyboardEvent) {
 						style="transition: transform 0.15s; transform: rotate({group.collapsed
 							? '-90deg'
 							: '0deg'})"
-						><polyline points="6 9 12 15 18 9" /></svg
 					>
+						<polyline points="6 9 12 15 18 9" />
+					</svg>
 				</button>
 			{/if}
 		{/each}
 
 		<button
 			class="new-tab-btn"
-			on:click={() => openTab()}
+			onclick={() => openTab()}
 			title="New tab (Ctrl+T)"
 			aria-label="New tab"
 		>
@@ -556,23 +524,24 @@ function onWindowKeydown(e: KeyboardEvent) {
 				stroke="currentColor"
 				stroke-width="2"
 				stroke-linecap="round"
-				><line x1="12" y1="5" x2="12" y2="19" /><line
+			>
+				<line x1="12" y1="5" x2="12" y2="19" /><line
 					x1="5"
 					y1="12"
 					x2="19"
 					y2="12"
-				/></svg
-			>
+				/>
+			</svg>
 		</button>
 	</div>
 
-	<!-- TOOLBAR (address bar for active tab) -->
+	<!-- TOOLBAR -->
 	{#if activeTab}
 		<div class="toolbar">
 			<div class="nav-buttons">
 				<button
 					class="icon-btn"
-					on:click={() => goBack(activeTabId)}
+					onclick={() => goBack(activeTabId)}
 					disabled={activeTab.historyIndex <= 0}
 					title="Back"
 				>
@@ -585,12 +554,13 @@ function onWindowKeydown(e: KeyboardEvent) {
 						stroke-width="2"
 						stroke-linecap="round"
 						stroke-linejoin="round"
-						><polyline points="15 18 9 12 15 6" /></svg
 					>
+						<polyline points="15 18 9 12 15 6" />
+					</svg>
 				</button>
 				<button
 					class="icon-btn"
-					on:click={() => goForward(activeTabId)}
+					onclick={() => goForward(activeTabId)}
 					disabled={activeTab.historyIndex >=
 						activeTab.history.length - 1}
 					title="Forward"
@@ -604,28 +574,29 @@ function onWindowKeydown(e: KeyboardEvent) {
 						stroke-width="2"
 						stroke-linecap="round"
 						stroke-linejoin="round"
-						><polyline points="9 18 15 12 9 6" /></svg
 					>
+						<polyline points="9 18 15 12 9 6" />
+					</svg>
 				</button>
 			</div>
 
-			<div class="address-bar" class:loading={activeTab.loading}>
+			<div class={["address-bar", activeTab.loading && "loading"]}>
 				<span class="scheme">sisi://</span>
 				<input
 					type="text"
 					value={activeTab.inputValue}
-					on:input={(e) =>
+					oninput={(e) =>
 						updateTab(activeTabId, {
 							inputValue: sanitize(
 								(e.target as HTMLInputElement).value,
 							),
 						})}
-					on:keydown={(e) => {
+					onkeydown={(e) => {
 						if (e.key === "Enter") navigateTab(activeTabId);
 					}}
-					on:focus={(e) => (e.target as HTMLInputElement).select()}
+					onfocus={(e) => (e.target as HTMLInputElement).select()}
 					placeholder="enter site hash or address"
-					spellcheck="false"
+					spellcheck={false}
 					autocomplete="off"
 				/>
 				{#if activeTab.loading}
@@ -633,7 +604,7 @@ function onWindowKeydown(e: KeyboardEvent) {
 				{:else}
 					<button
 						class="go-btn"
-						on:click={() => navigateTab(activeTabId)}
+						onclick={() => navigateTab(activeTabId)}
 						disabled={!activeTab.inputValue.trim()}
 						aria-label="Go"
 					>
@@ -646,8 +617,9 @@ function onWindowKeydown(e: KeyboardEvent) {
 							stroke-width="2.2"
 							stroke-linecap="round"
 							stroke-linejoin="round"
-							><polyline points="9 18 15 12 9 6" /></svg
 						>
+							<polyline points="9 18 15 12 9 6" />
+						</svg>
 					</button>
 				{/if}
 			</div>
@@ -667,13 +639,11 @@ function onWindowKeydown(e: KeyboardEvent) {
 						stroke-linecap="round"
 						stroke-linejoin="round"
 						style="color:#d97706"
-						><circle cx="12" cy="12" r="10" /><line
-							x1="12"
-							y1="8"
-							x2="12"
-							y2="12"
-						/><line x1="12" y1="16" x2="12.01" y2="16" /></svg
 					>
+						<circle cx="12" cy="12" r="10" />
+						<line x1="12" y1="8" x2="12" y2="12" />
+						<line x1="12" y1="16" x2="12.01" y2="16" />
+					</svg>
 					<p class="error-msg">{activeTab.error}</p>
 					<p class="error-hint">
 						Make sure the address is valid and at least one peer is
@@ -694,12 +664,8 @@ function onWindowKeydown(e: KeyboardEvent) {
 							stroke-linejoin="round"
 							style="color:var(--text-3)"
 						>
-							<circle cx="12" cy="12" r="10" /><line
-								x1="2"
-								y1="12"
-								x2="22"
-								y2="12"
-							/>
+							<circle cx="12" cy="12" r="10" />
+							<line x1="2" y1="12" x2="22" y2="12" />
 							<path
 								d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
 							/>
@@ -736,7 +702,7 @@ function onWindowKeydown(e: KeyboardEvent) {
 	>
 		<button
 			class="ctx-item"
-			on:click={() => ctxAction("new-tab")}
+			onclick={() => ctxAction("new-tab")}
 			role="menuitem"
 		>
 			<svg
@@ -747,18 +713,19 @@ function onWindowKeydown(e: KeyboardEvent) {
 				stroke="currentColor"
 				stroke-width="2"
 				stroke-linecap="round"
-				><line x1="12" y1="5" x2="12" y2="19" /><line
+			>
+				<line x1="12" y1="5" x2="12" y2="19" /><line
 					x1="5"
 					y1="12"
 					x2="19"
 					y2="12"
-				/></svg
-			>
+				/>
+			</svg>
 			New tab
 		</button>
 		<button
 			class="ctx-item"
-			on:click={() => ctxAction("duplicate")}
+			onclick={() => ctxAction("duplicate")}
 			role="menuitem"
 		>
 			<svg
@@ -770,17 +737,19 @@ function onWindowKeydown(e: KeyboardEvent) {
 				stroke-width="2"
 				stroke-linecap="round"
 				stroke-linejoin="round"
-				><rect x="9" y="9" width="13" height="13" rx="2" /><path
-					d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
-				/></svg
 			>
+				<rect x="9" y="9" width="13" height="13" rx="2" />
+				<path
+					d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+				/>
+			</svg>
 			Duplicate tab
 		</button>
 		<div class="ctx-separator"></div>
 		{#if tabs.find((t) => t.id === ctxMenu?.tabId)?.groupId}
 			<button
 				class="ctx-item"
-				on:click={() => ctxAction("remove-group")}
+				onclick={() => ctxAction("remove-group")}
 				role="menuitem"
 			>
 				<svg
@@ -792,19 +761,20 @@ function onWindowKeydown(e: KeyboardEvent) {
 					stroke-width="2"
 					stroke-linecap="round"
 					stroke-linejoin="round"
-					><circle cx="12" cy="12" r="10" /><line
+				>
+					<circle cx="12" cy="12" r="10" /><line
 						x1="4.93"
 						y1="4.93"
 						x2="19.07"
 						y2="19.07"
-					/></svg
-				>
+					/>
+				</svg>
 				Remove from group
 			</button>
 		{:else}
 			<button
 				class="ctx-item"
-				on:click={() => ctxAction("new-group")}
+				onclick={() => ctxAction("new-group")}
 				role="menuitem"
 			>
 				<svg
@@ -816,35 +786,34 @@ function onWindowKeydown(e: KeyboardEvent) {
 					stroke-width="2"
 					stroke-linecap="round"
 					stroke-linejoin="round"
-					><circle cx="9" cy="9" r="4" /><circle
+				>
+					<circle cx="9" cy="9" r="4" /><circle
 						cx="15"
 						cy="15"
 						r="4"
-					/></svg
-				>
+					/>
+				</svg>
 				Add to new group
 			</button>
-			{#if groups.length > 0}
-				{#each groups as g}
-					<button
-						class="ctx-item ctx-group-item"
-						on:click={() => {
-							updateTab(ctxMenu!.tabId, { groupId: g.id });
-							closeCtxMenu();
-						}}
-						role="menuitem"
-					>
-						<span class="ctx-group-dot" style="background:{g.color}"
-						></span>
-						Add to "{g.name}"
-					</button>
-				{/each}
-			{/if}
+			{#each groups as g (g.id)}
+				<button
+					class="ctx-item ctx-group-item"
+					onclick={() => {
+						updateTab(ctxMenu!.tabId, { groupId: g.id });
+						closeCtxMenu();
+					}}
+					role="menuitem"
+				>
+					<span class="ctx-group-dot" style="background:{g.color}"
+					></span>
+					Add to "{g.name}"
+				</button>
+			{/each}
 		{/if}
 		<div class="ctx-separator"></div>
 		<button
 			class="ctx-item ctx-danger"
-			on:click={() => ctxAction("close")}
+			onclick={() => ctxAction("close")}
 			role="menuitem"
 		>
 			<svg
@@ -855,13 +824,14 @@ function onWindowKeydown(e: KeyboardEvent) {
 				stroke="currentColor"
 				stroke-width="2.5"
 				stroke-linecap="round"
-				><line x1="18" y1="6" x2="6" y2="18" /><line
+			>
+				<line x1="18" y1="6" x2="6" y2="18" /><line
 					x1="6"
 					y1="6"
 					x2="18"
 					y2="18"
-				/></svg
-			>
+				/>
+			</svg>
 			Close tab
 		</button>
 	</div>
@@ -871,8 +841,8 @@ function onWindowKeydown(e: KeyboardEvent) {
 {#if showGroupModal}
 	<div
 		class="modal-overlay"
-		on:click|self={() => {
-			showGroupModal = false;
+		onclick={(e) => {
+			if (e.target === e.currentTarget) showGroupModal = false;
 		}}
 	>
 		<div class="modal">
@@ -881,16 +851,17 @@ function onWindowKeydown(e: KeyboardEvent) {
 				class="modal-input"
 				bind:value={newGroupName}
 				placeholder="Group name"
-				on:keydown={(e) => e.key === "Enter" && createGroup()}
-				autofocus
+				onkeydown={(e) => e.key === "Enter" && createGroup()}
 			/>
 			<div class="color-picker">
-				{#each GROUP_COLORS as color}
+				{#each GROUP_COLORS as color (color)}
 					<button
-						class="color-dot"
-						class:selected={newGroupColor === color}
+						class={[
+							"color-dot",
+							newGroupColor === color && "selected",
+						]}
 						style="background:{color}"
-						on:click={() => (newGroupColor = color)}
+						onclick={() => (newGroupColor = color)}
 						aria-label="Color {color}"
 					></button>
 				{/each}
@@ -898,15 +869,17 @@ function onWindowKeydown(e: KeyboardEvent) {
 			<div class="modal-actions">
 				<button
 					class="modal-btn ghost"
-					on:click={() => {
+					onclick={() => {
 						showGroupModal = false;
 					}}>Cancel</button
 				>
 				<button
 					class="modal-btn primary"
-					on:click={createGroup}
-					disabled={!newGroupName.trim()}>Create group</button
+					onclick={createGroup}
+					disabled={!newGroupName.trim()}
 				>
+					Create group
+				</button>
 			</div>
 		</div>
 	</div>
@@ -975,7 +948,6 @@ function onWindowKeydown(e: KeyboardEvent) {
 		background: var(--accent-light);
 	}
 
-	/* Group color indicator bar at top of tab */
 	.tab[style*="--tab-group-color"]::before {
 		content: "";
 		position: absolute;
@@ -993,7 +965,6 @@ function onWindowKeydown(e: KeyboardEvent) {
 		border-radius: 50%;
 		flex-shrink: 0;
 	}
-
 	.tab-icon {
 		opacity: 0.4;
 		flex-shrink: 0;
@@ -1049,6 +1020,14 @@ function onWindowKeydown(e: KeyboardEvent) {
 		opacity: 1;
 	}
 
+	.tab-favicon {
+		width: 14px;
+		height: 14px;
+		border-radius: 3px;
+		object-fit: cover;
+		flex-shrink: 0;
+	}
+
 	/* ── GROUP PILL ── */
 	.group-pill {
 		display: flex;
@@ -1072,7 +1051,6 @@ function onWindowKeydown(e: KeyboardEvent) {
 	.group-pill:hover {
 		background: color-mix(in srgb, var(--group-color) 20%, transparent);
 	}
-
 	.group-dot {
 		width: 8px;
 		height: 8px;
@@ -1305,7 +1283,7 @@ function onWindowKeydown(e: KeyboardEvent) {
 	}
 
 	/* ── CONTEXT MENU ── */
-	:global(.ctx-menu) {
+	.ctx-menu {
 		position: fixed;
 		z-index: 1000;
 		background: var(--surface);
@@ -1318,7 +1296,7 @@ function onWindowKeydown(e: KeyboardEvent) {
 		flex-direction: column;
 		gap: 1px;
 	}
-	:global(.ctx-item) {
+	.ctx-item {
 		display: flex;
 		align-items: center;
 		gap: 8px;
@@ -1336,33 +1314,33 @@ function onWindowKeydown(e: KeyboardEvent) {
 			background 0.1s,
 			color 0.1s;
 	}
-	:global(.ctx-item:hover) {
+	.ctx-item:hover {
 		background: var(--surface-2);
 		color: var(--text);
 	}
-	:global(.ctx-danger) {
+	.ctx-danger {
 		color: #ef4444 !important;
 	}
-	:global(.ctx-danger:hover) {
+	.ctx-danger:hover {
 		background: #fef2f2 !important;
 	}
-	:global(.ctx-separator) {
+	.ctx-separator {
 		height: 1px;
 		background: var(--border);
 		margin: 3px 0;
 	}
-	:global(.ctx-group-dot) {
+	.ctx-group-dot {
 		width: 10px;
 		height: 10px;
 		border-radius: 50%;
 		flex-shrink: 0;
 	}
-	:global(.ctx-group-item) {
+	.ctx-group-item {
 		padding-left: 10px;
 	}
 
 	/* ── GROUP MODAL ── */
-	:global(.modal-overlay) {
+	.modal-overlay {
 		position: fixed;
 		inset: 0;
 		background: rgba(0, 0, 0, 0.3);
@@ -1372,7 +1350,7 @@ function onWindowKeydown(e: KeyboardEvent) {
 		z-index: 500;
 		backdrop-filter: blur(4px);
 	}
-	:global(.modal) {
+	.modal {
 		background: var(--surface);
 		border: 1px solid var(--border);
 		border-radius: 8px;
@@ -1383,12 +1361,12 @@ function onWindowKeydown(e: KeyboardEvent) {
 		gap: 14px;
 		box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12);
 	}
-	:global(.modal-title) {
+	.modal-title {
 		font-size: 14px;
 		font-weight: 600;
 		color: var(--text);
 	}
-	:global(.modal-input) {
+	.modal-input {
 		border: 1px solid var(--border);
 		border-radius: 5px;
 		padding: 8px 10px;
@@ -1399,15 +1377,15 @@ function onWindowKeydown(e: KeyboardEvent) {
 		outline: none;
 		transition: border-color 0.15s;
 	}
-	:global(.modal-input:focus) {
+	.modal-input:focus {
 		border-color: var(--accent);
 	}
-	:global(.color-picker) {
+	.color-picker {
 		display: flex;
 		gap: 8px;
 		flex-wrap: wrap;
 	}
-	:global(.color-dot) {
+	.color-dot {
 		width: 22px;
 		height: 22px;
 		border-radius: 50%;
@@ -1417,19 +1395,19 @@ function onWindowKeydown(e: KeyboardEvent) {
 			transform 0.1s,
 			border-color 0.1s;
 	}
-	:global(.color-dot:hover) {
+	.color-dot:hover {
 		transform: scale(1.15);
 	}
-	:global(.color-dot.selected) {
+	.color-dot.selected {
 		border-color: var(--text);
 		transform: scale(1.1);
 	}
-	:global(.modal-actions) {
+	.modal-actions {
 		display: flex;
 		gap: 8px;
 		justify-content: flex-end;
 	}
-	:global(.modal-btn) {
+	.modal-btn {
 		padding: 7px 14px;
 		border-radius: 5px;
 		font-size: 13px;
@@ -1439,41 +1417,24 @@ function onWindowKeydown(e: KeyboardEvent) {
 		border: 1px solid var(--border);
 		transition: all 0.15s;
 	}
-	:global(.modal-btn.ghost) {
+	.modal-btn.ghost {
 		background: none;
 		color: var(--text-2);
 	}
-	:global(.modal-btn.ghost:hover) {
+	.modal-btn.ghost:hover {
 		border-color: var(--text-2);
 		color: var(--text);
 	}
-	:global(.modal-btn.primary) {
+	.modal-btn.primary {
 		background: var(--accent);
 		color: white;
 		border-color: var(--accent);
 	}
-	:global(.modal-btn.primary:hover) {
+	.modal-btn.primary:hover {
 		opacity: 0.9;
 	}
-	:global(.modal-btn.primary:disabled) {
+	.modal-btn.primary:disabled {
 		opacity: 0.4;
 		cursor: default;
-	}
-
-	.tab-favicon {
-		width: 14px;
-		height: 14px;
-		border-radius: 3px;
-		object-fit: cover;
-		flex-shrink: 0;
-	}
-
-	.tab-favicon-fallback {
-		width: 14px;
-		height: 14px;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		opacity: 0.4;
 	}
 </style>

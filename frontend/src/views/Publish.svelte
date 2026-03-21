@@ -3,8 +3,8 @@
 
 	let selectedPath = $state("");
 	let siteName = $state("");
-	let siteScope = $state(""); // "forum"
-	let humanName = $state(""); // "name@scope"
+	let siteScope = $state("");
+	let humanName = $state("");
 	let publishing = $state(false);
 	let publishedHash = $state("");
 	let error = $state("");
@@ -13,6 +13,18 @@
 	let permanentAddress = $state("");
 	let publishedVersion = $state(0);
 	let claimedName = $state<string | null>(null);
+
+	// Auto-derive placeholder for human name input
+	let humanNamePlaceholder = $derived(() => {
+		const local = siteName
+			.trim()
+			.toLowerCase()
+			.replace(/[^a-z0-9_-]/g, "-");
+		const scope = siteScope.trim().toLowerCase();
+		if (local && scope) return `${local}@${scope}`;
+		if (local) return local;
+		return "chiko@forum";
+	});
 
 	async function pickFolder() {
 		const result = await invoke<string | null>("pick_folder");
@@ -30,7 +42,6 @@
 		permanentAddress = "";
 		claimedName = null;
 
-		// Auto-derive humanName from siteName + scope if user left it blank.
 		let nameToUse = humanName.trim() || null;
 		if (!nameToUse && siteName.trim()) {
 			const local = siteName
@@ -111,8 +122,9 @@
 					stroke-width="2"
 					stroke-linecap="round"
 					stroke-linejoin="round"
-					><polyline points="20 6 9 17 4 12" /></svg
 				>
+					<polyline points="20 6 9 17 4 12" />
+				</svg>
 			</div>
 			<div class="success-body">
 				<p class="success-title">Published — v{publishedVersion}</p>
@@ -129,10 +141,12 @@
 							stroke-width="2"
 							stroke-linecap="round"
 							stroke-linejoin="round"
-							><path
-								d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"
-							/><line x1="7" y1="7" x2="7.01" y2="7" /></svg
 						>
+							<path
+								d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"
+							/>
+							<line x1="7" y1="7" x2="7.01" y2="7" />
+						</svg>
 						<span>Name claimed: <strong>{claimedName}</strong></span
 						>
 					</div>
@@ -167,8 +181,9 @@
 									stroke-width="2.5"
 									stroke-linecap="round"
 									stroke-linejoin="round"
-									><polyline points="20 6 9 17 4 12" /></svg
 								>
+									<polyline points="20 6 9 17 4 12" />
+								</svg>
 							{:else}
 								<svg
 									width="13"
@@ -179,16 +194,18 @@
 									stroke-width="2"
 									stroke-linecap="round"
 									stroke-linejoin="round"
-									><rect
+								>
+									<rect
 										x="9"
 										y="9"
 										width="13"
 										height="13"
 										rx="2"
-									/><path
+									/>
+									<path
 										d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
-									/></svg
-								>
+									/>
+								</svg>
 							{/if}
 						</button>
 					</div>
@@ -217,8 +234,9 @@
 									stroke-width="2.5"
 									stroke-linecap="round"
 									stroke-linejoin="round"
-									><polyline points="20 6 9 17 4 12" /></svg
 								>
+									<polyline points="20 6 9 17 4 12" />
+								</svg>
 							{:else}
 								<svg
 									width="13"
@@ -229,16 +247,18 @@
 									stroke-width="2"
 									stroke-linecap="round"
 									stroke-linejoin="round"
-									><rect
+								>
+									<rect
 										x="9"
 										y="9"
 										width="13"
 										height="13"
 										rx="2"
-									/><path
+									/>
+									<path
 										d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
-									/></svg
-								>
+									/>
+								</svg>
 							{/if}
 						</button>
 					</div>
@@ -256,13 +276,11 @@
 		</div>
 	{:else}
 		<div class="form">
-			<!-- Folder picker -->
 			<div class="field">
 				<label for="folder">Site folder</label>
 				<div class="folder-row">
 					<div
-						class="folder-display"
-						class:selected={Boolean(selectedPath)}
+						class={["folder-display", selectedPath && "selected"]}
 						onclick={pickFolder}
 						role="button"
 						tabindex="0"
@@ -279,10 +297,11 @@
 								stroke-linecap="round"
 								stroke-linejoin="round"
 								style="color: var(--accent); flex-shrink: 0"
-								><path
-									d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
-								/></svg
 							>
+								<path
+									d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+								/>
+							</svg>
 							<span class="folder-path">{selectedPath}</span>
 						{:else}
 							<svg
@@ -295,10 +314,11 @@
 								stroke-linecap="round"
 								stroke-linejoin="round"
 								style="color: var(--text-3); flex-shrink: 0"
-								><path
-									d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
-								/></svg
 							>
+								<path
+									d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+								/>
+							</svg>
 							<span class="folder-placeholder"
 								>Click to select a folder…</span
 							>
@@ -310,7 +330,6 @@
 				</div>
 			</div>
 
-			<!-- Site name -->
 			<div class="field">
 				<label for="name">Site name</label>
 				<input
@@ -318,27 +337,25 @@
 					type="text"
 					bind:value={siteName}
 					placeholder="my-site"
-					maxlength="64"
-					spellcheck="false"
+					maxlength={64}
+					spellcheck={false}
 				/>
 				<span class="field-hint"
 					>Human-readable label stored in the manifest.</span
 				>
 			</div>
 
-			<!-- Scope (optional) -->
 			<div class="field">
-				<label for="scope"
-					>Topic scope <span class="optional-badge">optional</span
-					></label
-				>
+				<label for="scope">
+					Topic scope <span class="optional-badge">optional</span>
+				</label>
 				<input
 					id="scope"
 					type="text"
 					bind:value={siteScope}
 					placeholder="e.g. forum, blog, portfolio"
-					maxlength="32"
-					spellcheck="false"
+					maxlength={32}
+					spellcheck={false}
 					autocomplete="off"
 				/>
 				<span class="field-hint">
@@ -347,7 +364,6 @@
 				</span>
 			</div>
 
-			<!-- Human name (optional, auto-derived if blank) -->
 			<div class="field">
 				<label for="human-name">
 					Human-readable name <span class="optional-badge"
@@ -358,15 +374,9 @@
 					id="human-name"
 					type="text"
 					bind:value={humanName}
-					placeholder={siteName && siteScope
-						? `${siteName.toLowerCase().replace(/[^a-z0-9_-]/g, "-")}@${siteScope.toLowerCase()}`
-						: siteName
-							? siteName
-									.toLowerCase()
-									.replace(/[^a-z0-9_-]/g, "-")
-							: "chiko@forum"}
-					maxlength="64"
-					spellcheck="false"
+					placeholder={humanNamePlaceholder()}
+					maxlength={64}
+					spellcheck={false}
 					autocomplete="off"
 				/>
 				<span class="field-hint">
@@ -387,13 +397,11 @@
 						stroke-width="2"
 						stroke-linecap="round"
 						stroke-linejoin="round"
-						><circle cx="12" cy="12" r="10" /><line
-							x1="12"
-							y1="8"
-							x2="12"
-							y2="12"
-						/><line x1="12" y1="16" x2="12.01" y2="16" /></svg
 					>
+						<circle cx="12" cy="12" r="10" />
+						<line x1="12" y1="8" x2="12" y2="12" />
+						<line x1="12" y1="16" x2="12.01" y2="16" />
+					</svg>
 					{error}
 				</div>
 			{/if}
@@ -416,15 +424,11 @@
 						stroke-width="2"
 						stroke-linecap="round"
 						stroke-linejoin="round"
-						><path
-							d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
-						/><polyline points="17 8 12 3 7 8" /><line
-							x1="12"
-							y1="3"
-							x2="12"
-							y2="15"
-						/></svg
 					>
+						<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+						<polyline points="17 8 12 3 7 8" />
+						<line x1="12" y1="3" x2="12" y2="15" />
+					</svg>
 					Publish to network
 				{/if}
 			</button>
@@ -504,7 +508,7 @@
 		padding: 8px 12px;
 		border: 1px solid var(--border);
 		border-radius: var(--radius);
-		background: var(--surface);
+		background: var(--surface-2);
 		cursor: pointer;
 		min-width: 0;
 		transition: border-color 0.15s;
@@ -535,7 +539,7 @@
 		height: 36px;
 		border: 1px solid var(--border);
 		border-radius: var(--radius);
-		background: var(--surface);
+		background: var(--surface-2);
 		color: var(--text-2);
 		font-family: "DM Sans", sans-serif;
 		font-size: 13px;
@@ -555,7 +559,7 @@
 		padding: 8px 12px;
 		border: 1px solid var(--border);
 		border-radius: var(--radius);
-		background: var(--surface);
+		background: var(--surface-2);
 		font-family: "DM Sans", sans-serif;
 		font-size: 13.5px;
 		color: var(--text);
@@ -649,7 +653,7 @@
 
 	/* ── Success state ── */
 	.success-card {
-		background: var(--surface);
+		background: var(--surface-2);
 		border: 1px solid var(--border);
 		border-radius: 8px;
 		padding: 24px;
@@ -728,16 +732,14 @@
 		flex: 1;
 	}
 	.hash.perm {
-		background: var(--accent-light);
 		border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
-		color: var(--accent);
 	}
 	.copy-btn {
 		width: 28px;
 		height: 28px;
 		border: 1px solid var(--border);
 		border-radius: 4px;
-		background: var(--surface);
+		background: var(--surface-3);
 		color: var(--text-2);
 		cursor: pointer;
 		display: flex;

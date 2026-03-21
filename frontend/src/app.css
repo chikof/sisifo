@@ -8,24 +8,75 @@
 
 :root {
 	--accent: #0d9488;
+	--accent-dim: #0a6b61;
 	--accent-light: #e6f4f3;
+
 	--border: #e2e0dc;
 	--surface: #ffffff;
 	--surface-2: #f0ede9;
+	--surface-3: #e8e4de;
+
 	--text: #1a1a1a;
 	--text-2: #6b6760;
 	--text-3: #a09d99;
+
+	--bg: #f5f4f2;
+
 	--mono: "DM Mono", monospace;
+	--sans: "DM Sans", "Helvetica Neue", sans-serif;
 	--radius: 6px;
-	--sidebar-w: 160px;
+	--rail-w: 48px;
+}
+
+:root[data-theme="dark"] {
+	--accent: #0d9488;
+	--accent-dim: #0a6b61;
+	--accent-light: #0e2826;
+
+	--border: #353330;
+	--surface: #242320;
+	--surface-2: #2a2927;
+	--surface-3: #302f2c;
+
+	--text: #edeae5;
+	--text-2: #8c8880;
+	--text-3: #55524d;
+
+	--bg: #1c1b19;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--accent: #0d9488;
+		--accent-dim: #0a6b61;
+		--accent-light: #0e2826;
+
+		--border: #353330;
+		--surface: #242320;
+		--surface-2: #2a2927;
+		--surface-3: #302f2c;
+
+		--text: #edeae5;
+		--text-2: #8c8880;
+		--text-3: #55524d;
+
+		--bg: #1c1b19;
+	}
+}
+
+html {
+	color-scheme: light dark;
 }
 
 body {
-	background: #f5f4f2;
-	color: #1a1a1a;
-	font-family: "DM Sans", "Helvetica Neue", sans-serif;
+	background: var(--bg);
+	color: var(--text);
+	font-family: var(--sans);
 	font-size: 14px;
 	-webkit-font-smoothing: antialiased;
 	height: 100vh;
 	overflow: hidden;
+	transition:
+		background 0.2s,
+		color 0.2s;
 }

@@ -2,6 +2,8 @@
 	import { invoke } from "@tauri-apps/api/core";
 	import { onMount, onDestroy } from "svelte";
 
+	let { loading = $bindable(true) }: { loading?: boolean } = $props();
+
 	interface NodeStats {
 		node_id: string;
 		peer_count: number;
@@ -14,7 +16,6 @@
 
 	let stats = $state<NodeStats | null>(null);
 	let error = $state("");
-	let loading = $state(true);
 	let daemonRunning = $state(false);
 	let nodeIdentity = $state("");
 	let copiedId = $state(false);
@@ -28,7 +29,7 @@
 
 	onDestroy(() => clearInterval(interval));
 
-	async function loadAll() {
+	export async function loadAll() {
 		loading = true;
 		try {
 			[daemonRunning, nodeIdentity] = await Promise.all([
@@ -66,36 +67,6 @@
 </script>
 
 <div class="node-stats">
-	<div class="header">
-		<div>
-			<h1>Node</h1>
-			<p>Live stats for your local iroh node.</p>
-		</div>
-		<button
-			class="refresh-btn"
-			onclick={loadAll}
-			disabled={loading}
-			title="Refresh"
-		>
-			<svg
-				width="14"
-				height="14"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				class:spin={loading}
-				><polyline points="23 4 23 10 17 10" /><polyline
-					points="1 20 1 14 7 14"
-				/><path
-					d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
-				/></svg
-			>
-		</button>
-	</div>
-
 	{#if error}
 		<div class="error-banner">
 			<svg
@@ -107,13 +78,11 @@
 				stroke-width="2"
 				stroke-linecap="round"
 				stroke-linejoin="round"
-				><circle cx="12" cy="12" r="10" /><line
-					x1="12"
-					y1="8"
-					x2="12"
-					y2="12"
-				/><line x1="12" y1="16" x2="12.01" y2="16" /></svg
 			>
+				<circle cx="12" cy="12" r="10" />
+				<line x1="12" y1="8" x2="12" y2="12" />
+				<line x1="12" y1="16" x2="12.01" y2="16" />
+			</svg>
 			{error}
 		</div>
 	{/if}
@@ -140,8 +109,9 @@
 								stroke-width="2.5"
 								stroke-linecap="round"
 								stroke-linejoin="round"
-								><polyline points="20 6 9 17 4 12" /></svg
 							>
+								<polyline points="20 6 9 17 4 12" />
+							</svg>
 						{:else}
 							<svg
 								width="12"
@@ -152,16 +122,18 @@
 								stroke-width="2"
 								stroke-linecap="round"
 								stroke-linejoin="round"
-								><rect
+							>
+								<rect
 									x="9"
 									y="9"
 									width="13"
 									height="13"
 									rx="2"
-								/><path
+								/>
+								<path
 									d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
-								/></svg
-							>
+								/>
+							</svg>
 						{/if}
 					</button>
 				{/if}
@@ -175,14 +147,12 @@
 
 	<div class="section">
 		<div class="section-title">Daemon</div>
-		<div class="daemon-card" class:online={daemonRunning}>
+		<div class={["daemon-card", daemonRunning && "online"]}>
 			<div class="daemon-status">
-				<span class="status-dot" class:online={daemonRunning}></span>
-				<span class="status-label"
-					>{daemonRunning
-						? "sisid is running"
-						: "sisid is offline"}</span
-				>
+				<span class={["status-dot", daemonRunning && "online"]}></span>
+				<span class="status-label">
+					{daemonRunning ? "sisid is running" : "sisid is offline"}
+				</span>
 			</div>
 			<p class="daemon-desc">
 				{#if daemonRunning}
@@ -245,60 +215,11 @@
 
 <style>
 	.node-stats {
-		padding: 32px 36px;
+		padding: 0 32px 0 32px;
 		display: flex;
 		flex-direction: column;
-		gap: 28px;
+		gap: 24px;
 		max-width: 600px;
-		height: 100%;
-		overflow-y: auto;
-	}
-
-	.header {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-	}
-	.header h1 {
-		font-size: 18px;
-		font-weight: 600;
-		letter-spacing: -0.02em;
-		color: var(--text);
-		margin-bottom: 4px;
-	}
-	.header p {
-		font-size: 13.5px;
-		color: var(--text-2);
-	}
-
-	.refresh-btn {
-		width: 32px;
-		height: 32px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		background: var(--surface);
-		color: var(--text-2);
-		cursor: pointer;
-		transition:
-			border-color 0.15s,
-			color 0.15s;
-		flex-shrink: 0;
-	}
-	.refresh-btn:hover:not(:disabled) {
-		border-color: var(--accent);
-		color: var(--accent);
-	}
-
-	.spin {
-		animation: spin 0.7s linear infinite;
-	}
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
 	}
 
 	.section {
@@ -355,11 +276,13 @@
 		flex-shrink: 0;
 		transition:
 			border-color 0.12s,
-			color 0.12s;
+			color 0.12s,
+			background 0.12s;
 	}
 	.copy-btn:hover {
 		border-color: var(--accent);
 		color: var(--accent);
+		background: var(--accent-light);
 	}
 	.id-hint {
 		font-size: 12px;

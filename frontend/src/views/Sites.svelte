@@ -2,6 +2,8 @@
 	import { invoke } from "@tauri-apps/api/core";
 	import { onMount } from "svelte";
 
+	let { loading = $bindable(true) }: { loading?: boolean } = $props();
+
 	interface SiteMeta {
 		name: string;
 		hash: string;
@@ -12,17 +14,16 @@
 		updated_at: number;
 	}
 
-	let sites: SiteMeta[] = [];
-	let loading = true;
-	let error = "";
-	let unpinning: string | null = null;
-	let copied: string | null = null;
-	let updatingHash: string | null = null;
-	let copiedPerm: string | null = null;
+	let sites = $state<SiteMeta[]>([]);
+	let error = $state("");
+	let unpinning = $state<string | null>(null);
+	let copied = $state<string | null>(null);
+	let updatingHash = $state<string | null>(null);
+	let copiedPerm = $state<string | null>(null);
 
 	onMount(load);
 
-	async function load() {
+	export async function load() {
 		loading = true;
 		error = "";
 		try {
@@ -53,13 +54,12 @@
 	}
 
 	async function updateSite(site: SiteMeta) {
-		// Pick the same folder again and republish
 		const dir = await invoke<string | null>("pick_folder");
 		if (!dir) return;
 		updatingHash = site.hash;
 		try {
 			await invoke("update_site", { path: dir, name: site.name });
-			await load(); // refresh list
+			await load();
 		} catch (e: any) {
 			error = e?.toString() ?? "Update failed";
 		} finally {
@@ -89,36 +89,6 @@
 </script>
 
 <div class="sites">
-	<div class="header">
-		<div>
-			<h1>Hosted sites</h1>
-			<p>Sites you're seeding on the network.</p>
-		</div>
-		<button
-			class="refresh-btn"
-			on:click={load}
-			disabled={loading}
-			title="Refresh"
-		>
-			<svg
-				width="14"
-				height="14"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				class:spin={loading}
-				><polyline points="23 4 23 10 17 10" /><polyline
-					points="1 20 1 14 7 14"
-				/><path
-					d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
-				/></svg
-			>
-		</button>
-	</div>
-
 	{#if error}
 		<div class="error-banner">
 			<svg
@@ -130,13 +100,11 @@
 				stroke-width="2"
 				stroke-linecap="round"
 				stroke-linejoin="round"
-				><circle cx="12" cy="12" r="10" /><line
-					x1="12"
-					y1="8"
-					x2="12"
-					y2="12"
-				/><line x1="12" y1="16" x2="12.01" y2="16" /></svg
 			>
+				<circle cx="12" cy="12" r="10" />
+				<line x1="12" y1="8" x2="12" y2="12" />
+				<line x1="12" y1="16" x2="12.01" y2="16" />
+			</svg>
 			{error}
 		</div>
 	{/if}
@@ -158,13 +126,11 @@
 				stroke-linecap="round"
 				stroke-linejoin="round"
 				style="color: var(--text-3)"
-				><rect x="2" y="3" width="20" height="14" rx="2" /><line
-					x1="8"
-					y1="21"
-					x2="16"
-					y2="21"
-				/><line x1="12" y1="17" x2="12" y2="21" /></svg
 			>
+				<rect x="2" y="3" width="20" height="14" rx="2" />
+				<line x1="8" y1="21" x2="16" y2="21" />
+				<line x1="12" y1="17" x2="12" y2="21" />
+			</svg>
 			<p class="empty-title">No sites hosted yet</p>
 			<p class="empty-sub">Publish a site and it will appear here.</p>
 		</div>
@@ -176,7 +142,9 @@
 						<div class="site-name">{site.name}</div>
 						<div class="site-meta">
 							<span
-								>{site.file_count} file{site.file_count !== 1 ? "s" : ""}</span
+								>{site.file_count} file{site.file_count !== 1
+									? "s"
+									: ""}</span
 							>
 							<span class="sep">·</span>
 							<span>{formatSize(site.total_size)}</span>
@@ -184,19 +152,19 @@
 							<span>{formatDate(site.updated_at)}</span>
 						</div>
 
-						<!-- Permanent address (pubkey) -->
 						<div class="hash-row">
-							<span
-								style="font-size:10px;color:var(--text-3);font-family:var(--mono)"
-								>perm:</span
+							<span class="hash-label">perm:</span>
+							<code class="hash"
+								>{site.permanent_address.slice(0, 16)}…</code
 							>
-							<code class="hash">{site.permanent_address.slice(0, 16)}…</code>
 							<button
 								class="copy-btn"
-								on:click={() => copyPerm(site.permanent_address)}
+								onclick={() => copyPerm(site.permanent_address)}
 								title="Copy permanent address"
 							>
-								{#if copiedPerm === site.permanent_address}✓{:else}
+								{#if copiedPerm === site.permanent_address}
+									✓
+								{:else}
 									<svg
 										width="12"
 										height="12"
@@ -206,27 +174,33 @@
 										stroke-width="2"
 										stroke-linecap="round"
 										stroke-linejoin="round"
-										><rect x="9" y="9" width="13" height="13" rx="2" /><path
-											d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
-										/></svg
 									>
+										<rect
+											x="9"
+											y="9"
+											width="13"
+											height="13"
+											rx="2"
+										/>
+										<path
+											d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+										/>
+									</svg>
 								{/if}
 							</button>
 						</div>
 
-						<!-- Current version hash -->
 						<div class="hash-row">
-							<span
-								style="font-size:10px;color:var(--text-3);font-family:var(--mono)"
-								>hash:</span
-							>
+							<span class="hash-label">hash:</span>
 							<code class="hash">{site.hash.slice(0, 16)}…</code>
 							<button
 								class="copy-btn"
-								on:click={() => copy(site.hash)}
+								onclick={() => copy(site.hash)}
 								title="Copy version hash"
 							>
-								{#if copied === site.hash}✓{:else}
+								{#if copied === site.hash}
+									✓
+								{:else}
 									<svg
 										width="12"
 										height="12"
@@ -236,10 +210,18 @@
 										stroke-width="2"
 										stroke-linecap="round"
 										stroke-linejoin="round"
-										><rect x="9" y="9" width="13" height="13" rx="2" /><path
-											d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
-										/></svg
 									>
+										<rect
+											x="9"
+											y="9"
+											width="13"
+											height="13"
+											rx="2"
+										/>
+										<path
+											d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+										/>
+									</svg>
 								{/if}
 							</button>
 						</div>
@@ -252,7 +234,7 @@
 						</span>
 						<button
 							class="update-btn"
-							on:click={() => updateSite(site)}
+							onclick={() => updateSite(site)}
 							disabled={updatingHash === site.hash}
 							title="Republish from a folder — increments version"
 						>
@@ -268,17 +250,18 @@
 									stroke-width="2"
 									stroke-linecap="round"
 									stroke-linejoin="round"
-									><polyline points="23 4 23 10 17 10" /><polyline
-										points="1 20 1 14 7 14"
-									/><path
-										d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
-									/></svg
 								>
+									<polyline points="23 4 23 10 17 10" />
+									<polyline points="1 20 1 14 7 14" />
+									<path
+										d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
+									/>
+								</svg>
 							{/if}
 						</button>
 						<button
 							class="unpin-btn"
-							on:click={() => unpin(site.hash)}
+							onclick={() => unpin(site.hash)}
 							disabled={unpinning === site.hash}
 							title="Stop seeding this site"
 						>
@@ -294,12 +277,16 @@
 									stroke-width="2"
 									stroke-linecap="round"
 									stroke-linejoin="round"
-									><polyline points="3 6 5 6 21 6" /><path
-										d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"
-									/><path d="M10 11v6" /><path d="M14 11v6" /><path
-										d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"
-									/></svg
 								>
+									<polyline points="3 6 5 6 21 6" />
+									<path
+										d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"
+									/>
+									<path d="M10 11v6" /><path d="M14 11v6" />
+									<path
+										d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"
+									/>
+								</svg>
 							{/if}
 						</button>
 					</div>
@@ -311,59 +298,10 @@
 
 <style>
 	.sites {
-		padding: 32px 36px;
+		padding: 0 32px;
 		display: flex;
 		flex-direction: column;
-		gap: 24px;
-		height: 100%;
-		overflow-y: auto;
-	}
-
-	.header {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-	}
-	.header h1 {
-		font-size: 18px;
-		font-weight: 600;
-		letter-spacing: -0.02em;
-		color: var(--text);
-		margin-bottom: 4px;
-	}
-	.header p {
-		font-size: 13.5px;
-		color: var(--text-2);
-	}
-
-	.refresh-btn {
-		width: 32px;
-		height: 32px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		background: var(--surface);
-		color: var(--text-2);
-		cursor: pointer;
-		transition:
-			border-color 0.15s,
-			color 0.15s;
-		flex-shrink: 0;
-	}
-	.refresh-btn:hover:not(:disabled) {
-		border-color: var(--accent);
-		color: var(--accent);
-	}
-
-	.spin {
-		animation: spin 0.7s linear infinite;
-	}
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
+		gap: 20px;
 	}
 
 	.loading-state {
@@ -419,7 +357,7 @@
 		transition: border-color 0.15s;
 	}
 	.site-card:hover {
-		border-color: #c8c4be;
+		border-color: var(--text-3);
 	}
 
 	.site-main {
@@ -455,6 +393,11 @@
 		gap: 6px;
 		margin-top: 2px;
 	}
+	.hash-label {
+		font-size: 10px;
+		color: var(--text-3);
+		font-family: var(--mono);
+	}
 	.hash {
 		font-family: var(--mono);
 		font-size: 11.5px;
@@ -476,12 +419,14 @@
 		justify-content: center;
 		transition:
 			border-color 0.12s,
-			color 0.12s;
+			color 0.12s,
+			background 0.12s;
 		flex-shrink: 0;
 	}
 	.copy-btn:hover {
 		border-color: var(--accent);
 		color: var(--accent);
+		background: var(--accent-light);
 	}
 
 	.site-actions {
@@ -544,27 +489,6 @@
 		cursor: default;
 	}
 
-	.btn-spinner {
-		width: 11px;
-		height: 11px;
-		border: 1.5px solid var(--border);
-		border-top-color: var(--text-3);
-		border-radius: 50%;
-		animation: spin 0.7s linear infinite;
-	}
-
-	.error-banner {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		padding: 10px 14px;
-		background: #fef3c7;
-		border: 1px solid #fde68a;
-		border-radius: var(--radius);
-		font-size: 13px;
-		color: #92400e;
-	}
-
 	.update-btn {
 		display: flex;
 		align-items: center;
@@ -590,5 +514,26 @@
 	.update-btn:disabled {
 		opacity: 0.5;
 		cursor: default;
+	}
+
+	.btn-spinner {
+		width: 11px;
+		height: 11px;
+		border: 1.5px solid var(--border);
+		border-top-color: var(--text-3);
+		border-radius: 50%;
+		animation: spin 0.7s linear infinite;
+	}
+
+	.error-banner {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 10px 14px;
+		background: #fef3c7;
+		border: 1px solid #fde68a;
+		border-radius: var(--radius);
+		font-size: 13px;
+		color: #92400e;
 	}
 </style>

@@ -40,24 +40,13 @@ fn key_to_str(k: &PointerKey) -> String {
 }
 
 fn str_to_key(s: &str) -> PointerKey {
-    // New format: "<64-char-pubkey>:<scope>" where scope may be empty.
-    // So minimum new-format length is 65 (64 + colon).
-    // Old format: exactly 64 chars with no colon.
-    if s.len() == 64 && !s.contains(':') {
-        // Legacy entry — treat as default (unscoped) site.
-        return PointerKey {
-            pubkey: s.to_string(),
-            scope: String::new(),
-        };
-    }
-    // New format: pubkey is always the first 64 chars, colon at index 64.
     if s.len() >= 65 && s.as_bytes()[64] == b':' {
         return PointerKey {
             pubkey: s[..64].to_string(),
             scope: s[65..].to_string(), // empty string when unscoped
         };
     }
-    // Unrecognised — treat whole string as pubkey with empty scope.
+
     warn!(
         "unrecognised pointer key format (len {}), treating as unscoped",
         s.len()
